@@ -142,7 +142,9 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
                     ConfigService.getReaderConfig("isOSNight") === "yes"))) ||
               this.props.backgroundColor === "rgba(44,47,49,1)";
 
-            const shadowOpacity = (isDarkMode ? 0.56 : 0.38) * spineStrength;
+            // Keep the surrounding shadows subtle; the center spine carries
+            // the actual fold while the side gradients only soften the join.
+            const shadowOpacity = (isDarkMode ? 0.26 : 0.16) * spineStrength;
 
             return (
               <>

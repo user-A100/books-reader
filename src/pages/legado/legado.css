@@ -1,0 +1,73 @@
+.legado-route-active .header { display: none !important; }
+
+.legado-page { position: absolute; inset: 0 0 38px 220px; display: grid; grid-template-columns: 210px minmax(0, 1fr); overflow: hidden; background: radial-gradient(circle at 85% 8%, rgba(197, 145, 73, .11), transparent 28%), var(--color-background, #fbfaf7); color: inherit; }
+.legado-sources { padding: 30px 14px; overflow: auto; border-right: 1px solid rgba(96, 83, 65, .15); background: rgba(124, 91, 48, .035); }
+.legado-sources header, .legado-config-card header, .legado-hero { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.legado-sources small, .legado-config-card small, .legado-hero small { color: #a86f31; font: 700 8px/1.2 Consolas, monospace; letter-spacing: .15em; }
+.legado-sources h2 { margin: 4px 0 18px; font: 500 26px/1 Georgia, "Noto Serif SC", serif; }
+.legado-icon { border: 1px solid rgba(96, 83, 65, .2); border-radius: 7px; width: 30px; height: 30px; background: transparent; color: inherit; cursor: pointer; }
+.legado-server { width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) 20px; align-items: center; gap: 8px; margin-bottom: 5px; padding: 9px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.legado-server:hover, .legado-server.active { border-color: rgba(168, 111, 49, .25); background: rgba(168, 111, 49, .09); }
+.legado-server > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 7px; background: #a86f31; color: white; font: 16px Georgia, serif; }
+.legado-server strong, .legado-server small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legado-server strong { font-size: 11px; }.legado-server small { margin-top: 3px; font-size: 8px; opacity: .5; }.legado-server i { font: 10px sans-serif; opacity: .4; }
+.legado-delete { width: 100%; margin-top: 14px; border: 0; background: transparent; color: #b45d51; font-size: 9px; cursor: pointer; }
+.legado-library { overflow: auto; padding: 50px clamp(26px, 5vw, 70px) 70px; }
+.legado-hero h1 { margin: 5px 0 8px; font: 500 clamp(30px, 4vw, 48px)/1.05 Georgia, "Noto Serif SC", serif; }.legado-hero p { margin: 0; font-size: 10px; opacity: .55; }
+.legado-hero button { border: 0; border-radius: 8px; padding: 10px 14px; background: #a86f31; color: white; cursor: pointer; font-size: 10px; }.legado-hero button:disabled { opacity: .45; cursor: wait; }
+.legado-search { display: flex; align-items: center; gap: 10px; margin: 26px 0; padding: 0 13px; height: 43px; border: 1px solid rgba(96, 83, 65, .2); border-radius: 9px; background: rgba(255,255,255,.2); }.legado-search input { flex: 1; border: 0; outline: 0; background: transparent; color: inherit; }.legado-search em { font: normal 9px Consolas, monospace; opacity: .45; }
+.legado-book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 24px 17px; }
+.legado-book { min-width: 0; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }.legado-cover { position: relative; aspect-ratio: 3/4; display: grid; place-items: center; overflow: hidden; margin-bottom: 9px; border-radius: 5px 9px 9px 5px; background: linear-gradient(145deg, #d4b287, #8f5e2c); box-shadow: 0 7px 18px rgba(68, 45, 23, .15); color: white; font: 28px Georgia, serif; transition: transform .18s ease, box-shadow .18s ease; }.legado-book:hover .legado-cover { transform: translateY(-3px); box-shadow: 0 11px 24px rgba(68,45,23,.2); }.legado-cover img { width: 100%; height: 100%; object-fit: cover; }.legado-cover em { position: absolute; right: 6px; bottom: 6px; padding: 3px 5px; border-radius: 3px; background: rgba(35,25,17,.72); color: white; font: normal 7px Consolas, monospace; }
+.legado-book > strong, .legado-book > small, .legado-book > p { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.legado-book > strong { font-size: 11px; }.legado-book > small { margin-top: 4px; font-size: 9px; opacity: .52; }.legado-book > p { margin: 5px 0 0; color: #a86f31; font-size: 8px; }
+.legado-loading, .legado-empty { min-height: 170px; display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 10px; opacity: .58; }.legado-loading i { width: 14px; height: 14px; box-sizing: border-box; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: legado-spin .7s linear infinite; }@keyframes legado-spin { to { transform: rotate(360deg); } }.legado-empty { flex-direction: column; }.legado-empty > span { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 14px; background: rgba(168,111,49,.1); color: #a86f31; font: 26px Georgia, serif; }.legado-empty h3, .legado-empty p { margin: 0; }.legado-empty p { max-width: 330px; text-align: center; }
+.legado-error { white-space: pre-wrap; border-left: 3px solid #c45f52; padding: 10px 12px; background: rgba(196,95,82,.08); font: 10px/1.5 Consolas, monospace; }
+.legado-modal { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(25,20,15,.35); backdrop-filter: blur(4px); }.legado-config-card { width: min(430px, calc(100vw - 40px)); box-sizing: border-box; padding: 22px; border: 1px solid rgba(96,83,65,.2); border-radius: 14px; background: var(--color-background, #fffdf9); box-shadow: 0 24px 70px rgba(30,20,12,.25); }.legado-config-card h2 { margin: 4px 0 16px; font: 500 22px Georgia, "Noto Serif SC", serif; }.legado-config-card label { display: grid; gap: 5px; margin: 10px 0; }.legado-config-card label span { font-size: 9px; opacity: .6; }.legado-config-card input, .legado-config-card select { height: 38px; box-sizing: border-box; border: 1px solid rgba(96,83,65,.22); border-radius: 8px; padding: 0 10px; background: transparent; color: inherit; outline: none; }.legado-config-card input:focus, .legado-config-card select:focus { border-color: #a86f31; }.legado-config-card p { font-size: 9px; line-height: 1.6; opacity: .55; }.legado-config-card footer { margin-top: 16px; text-align: right; }.legado-config-card .primary { border: 0; border-radius: 8px; padding: 10px 15px; background: #a86f31; color: white; cursor: pointer; }
+.legado-reader { position: absolute; inset: 0 0 38px 220px; display: grid; grid-template-rows: 58px minmax(0,1fr); overflow: hidden; background: var(--color-background, #fbfaf7); }.legado-reader > header { display: flex; align-items: center; gap: 10px; padding: 0 18px; border-bottom: 1px solid rgba(96,83,65,.16); }.legado-reader > header > button { border: 1px solid rgba(96,83,65,.18); border-radius: 7px; padding: 7px 10px; background: transparent; color: inherit; cursor: pointer; }.legado-reader > header > div { min-width: 0; flex: 1; text-align: center; }.legado-reader > header strong, .legado-reader > header small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.legado-reader > header strong { font: 500 13px Georgia, "Noto Serif SC", serif; }.legado-reader > header small { margin-top: 3px; font-size: 8px; opacity: .5; }
+.legado-reader-body { min-height: 0; display: grid; grid-template-columns: 230px minmax(0,1fr); }.legado-reader-body aside { overflow: auto; border-right: 1px solid rgba(96,83,65,.14); padding: 12px; }.legado-reader-body aside button { width: 100%; display: flex; gap: 8px; border: 0; border-radius: 6px; padding: 8px; background: transparent; color: inherit; text-align: left; cursor: pointer; font-size: 9px; }.legado-reader-body aside button.active { background: rgba(168,111,49,.11); color: #a86f31; }.legado-reader-body aside span { min-width: 25px; font: 8px Consolas, monospace; opacity: .55; }.legado-reader-body article { overflow: auto; scroll-behavior: smooth; }.legado-prose { width: min(720px, calc(100% - 54px)); margin: 0 auto; padding: 52px 0 120px; font: 17px/2 Georgia, "Noto Serif SC", serif; }.legado-prose p { margin: 0 0 1.25em; text-indent: 2em; }.legado-prose img { max-width: 100%; height: auto; }
+@media (max-width: 760px) { .legado-page, .legado-reader { inset-left: 0; }.legado-page { grid-template-columns: 1fr; }.legado-sources { display: none; }.legado-library { padding: 30px 18px 60px; }.legado-reader-body { grid-template-columns: 1fr; }.legado-reader-body aside { display: none; } }
+
+/* Preview reader controls and selection highlights. */
+.legado-reader.legado-sepia { background: #f2ead7; color: #493d2d; }
+.legado-reader { z-index: 40; }
+.legado-reader > header { position: relative; z-index: 50; pointer-events: auto; }
+.legado-reader > header { gap: 7px; }
+.legado-reader > header > button { padding: 7px 9px; }
+.legado-prose { width: calc(100% - 54px); }
+.legado-reader-body aside { position: relative; }
+.legado-toc-toggle { position: fixed !important; left: 429px !important; top: 50%; z-index: 9999 !important; display: flex !important; width: 22px !important; min-width: 22px; justify-content: center !important; padding: 8px 0 !important; border: 1px solid rgba(96,83,65,.2) !important; background: var(--color-background, #fbfaf7) !important; color: inherit !important; }
+.legado-reader.legado-toc-collapsed .legado-reader-body { grid-template-columns: 0 minmax(0,1fr); }
+.legado-reader.legado-toc-collapsed .legado-reader-body aside { padding: 0; border: 0; overflow: visible; }
+.legado-reader.legado-toc-collapsed .legado-reader-body aside > button:not(.legado-toc-toggle) { display: none; }
+.legado-reader.legado-toc-collapsed .legado-toc-toggle { left: 219px !important; }
+.legado-tool-highlight { display: inline-flex; align-items: center; justify-content: center; }
+.legado-tool-highlight:hover { border-color: rgba(168,111,49,.5); background: rgba(168,111,49,.1); }
+.legado-tool-icon { width: 16px; height: 16px; display: block; }
+.legado-popover-root { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; }
+.legado-popover-backdrop { position: absolute; inset: 0; background: rgba(25,20,15,.4); backdrop-filter: blur(4px); }
+.legado-color-card { position: relative; width: min(520px, calc(100vw - 40px)); max-height: calc(100vh - 80px); overflow: auto; box-sizing: border-box; padding: 18px 18px 16px; border: 1px solid rgba(96,83,65,.2); border-radius: 14px; background: var(--color-background, #fffdf9); box-shadow: 0 24px 70px rgba(30,20,12,.25); }
+.legado-color-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.legado-color-card small { color: #a86f31; font: 700 8px/1.2 Consolas, monospace; letter-spacing: .15em; }
+.legado-color-card h2 { margin: 4px 0 0; font: 500 20px Georgia, "Noto Serif SC", serif; }
+.legado-color-hint { margin: 10px 0 14px; font-size: 10px; line-height: 1.55; opacity: .6; }
+.legado-symbol-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid rgba(96,83,65,.18); border-radius: 9px; font-size: 11px; }
+.legado-switch { position: relative; width: 38px; height: 22px; padding: 0; border: 0; border-radius: 11px; background: rgba(96,83,65,.28); cursor: pointer; transition: background .2s ease; }
+.legado-switch.on { background: #86bf8f; }
+.legado-switch i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s ease; }
+.legado-switch.on i { transform: translateX(16px); }
+.legado-symbol-rules { margin-top: 12px; padding: 10px; border: 1px solid rgba(96,83,65,.16); border-left: 3px solid #86bf8f; border-radius: 9px; }
+.legado-symbol-rule { display: grid; grid-template-columns: 1fr 14px 1fr 34px 22px; gap: 6px; align-items: center; padding: 7px 0; border-bottom: 1px dashed rgba(96,83,65,.16); }
+.legado-symbol-rule:last-of-type { border-bottom: 0; }
+.legado-symbol-sym { width: 100%; height: 30px; box-sizing: border-box; border: 1px solid rgba(96,83,65,.22); border-radius: 6px; background: transparent; color: inherit; text-align: center; outline: none; font-size: 12px; }
+.legado-symbol-sym:focus { border-color: #86bf8f; }
+.legado-symbol-arrow { color: #86bf8f; text-align: center; }
+.legado-symbol-color input { width: 34px; height: 30px; padding: 2px; border: 1px solid rgba(96,83,65,.22); border-radius: 6px; background: transparent; cursor: pointer; }
+.legado-symbol-delete { height: 30px; padding: 0; border: 0; background: transparent; color: inherit; opacity: .5; cursor: pointer; font-size: 18px; line-height: 1; }
+.legado-symbol-delete:hover { opacity: 1; color: #c45f52; }
+.legado-symbol-preview { grid-column: 1 / -1; color: rgba(96,83,65,.6); font: 12px Georgia, "Noto Serif SC", serif; }
+.legado-symbol-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.legado-symbol-actions button { border: 1px solid rgba(96,83,65,.22); border-radius: 6px; padding: 6px 10px; background: transparent; color: inherit; cursor: pointer; font-size: 10px; }
+.legado-symbol-actions button:hover { border-color: #86bf8f; }
+.legado-symbol-actions .primary { border-color: #86bf8f; background: rgba(134,191,143,.14); }
+.legado-reader:fullscreen { inset: 0; width: 100vw; height: 100vh; z-index: 9999; }
+.legado-prose h1, .legado-prose h2, .legado-prose h3 { text-align: center; text-indent: 0; margin: 0 0 1.5em; }
+.legado-prose mark.legado-highlight { background: rgba(255, 214, 73, .55); color: inherit; padding: 0 .08em; border-radius: 2px; }

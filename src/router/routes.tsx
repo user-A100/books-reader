@@ -6,6 +6,7 @@ import BookSources from "../pages/bookSources";
 import WebNavigator from "../pages/webNavigator";
 import OnlineLibrary from "../pages/onlineLibrary";
 import WeRead from "../pages/weRead";
+import Legado from "../pages/legado";
 
 export const routes = [
   { path: "/manager/empty", component: EmptyPage },
@@ -18,5 +19,6 @@ export const routes = [
   { path: "/manager/sources", component: BookSources },
   { path: "/manager/library", component: OnlineLibrary },
   { path: "/manager/weread", component: WeRead },
+  { path: "/manager/legado", component: Legado },
   { path: "/manager/web", component: WebNavigator },
 ];

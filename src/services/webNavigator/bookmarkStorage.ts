@@ -11,6 +11,9 @@ const isSecureBookmarkUrl = (value: string) => {
   }
 };
 
+const isSecureFaviconUrl = (value: unknown) =>
+  typeof value === "string" && isSecureBookmarkUrl(value);
+
 export const getWebBookmarks = (): WebBookmark[] => {
   try {
     const value = ConfigService.getReaderConfig(BOOKMARKS_KEY);
@@ -26,6 +29,13 @@ export const getWebBookmarks = (): WebBookmark[] => {
           isSecureBookmarkUrl(item.url) &&
           typeof item.createdAt === "number"
       )
+      .map((item) => {
+        const { faviconUrl, ...bookmark } = item;
+        return {
+          ...bookmark,
+          ...(isSecureFaviconUrl(faviconUrl) ? { faviconUrl } : {}),
+        };
+      })
       .slice(0, 100);
   } catch {
     return [];

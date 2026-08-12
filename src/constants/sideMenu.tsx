@@ -36,6 +36,11 @@ export const sideMenu = [
     mode: "sources",
   },
   {
+    name: "Legado",
+    icon: "bookshelf-line",
+    mode: "legado",
+  },
+  {
     name: "Website Navigation",
     icon: "browser",
     mode: "web",

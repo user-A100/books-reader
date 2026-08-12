@@ -1,4 +1,4 @@
-import { resolveNavigationInput } from "./navigationInput";
+import { getFallbackFaviconUrl, resolveNavigationInput } from "./navigationInput";
 
 describe("resolveNavigationInput", () => {
   it("normalizes domains and preserves secure URLs", () => {
@@ -14,5 +14,12 @@ describe("resolveNavigationInput", () => {
     );
     expect(resolveNavigationInput("http://example.com")).toBeNull();
     expect(resolveNavigationInput("file:///tmp/book.epub")).toBeNull();
+  });
+
+  it("uses the conventional favicon path for secure websites", () => {
+    expect(getFallbackFaviconUrl("https://example.com/reading/list")).toBe(
+      "https://example.com/favicon.ico"
+    );
+    expect(getFallbackFaviconUrl("http://example.com")).toBeNull();
   });
 });
