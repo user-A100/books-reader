@@ -18,3 +18,14 @@ export const resolveNavigationInput = (value: string): string | null => {
     return null;
   }
 };
+
+export const getFallbackFaviconUrl = (websiteUrl: string): string | null => {
+  try {
+    const url = new URL(websiteUrl);
+    return url.protocol === "https:"
+      ? new URL("/favicon.ico", url).toString()
+      : null;
+  } catch {
+    return null;
+  }
+};

@@ -6,7 +6,7 @@ import {
   getWebBookmarks,
   saveWebBookmarks,
 } from "../../services/webNavigator/bookmarkStorage";
-import { resolveNavigationInput } from "./navigationInput";
+import { getFallbackFaviconUrl, resolveNavigationInput } from "./navigationInput";
 import { getStorageLocation } from "../../utils/common";
 import "./webNavigator.css";
 
@@ -39,6 +39,14 @@ const getIpcRenderer = () => {
     return (window as any).require?.("electron")?.ipcRenderer || null;
   } catch {
     return null;
+  }
+};
+
+const getWebsiteOrigin = (url: string) => {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
   }
 };
 
@@ -94,9 +102,28 @@ class WebNavigator extends React.Component<
   }
 
   handleBrowserState = (_event: unknown, state: WebNavigatorState) => {
+    const currentOrigin = state.faviconUrl ? getWebsiteOrigin(state.url) : "";
+    const hasFaviconUpdate = Boolean(
+      currentOrigin &&
+        this.state.bookmarks.some(
+          (bookmark) =>
+            getWebsiteOrigin(bookmark.url) === currentOrigin &&
+            bookmark.faviconUrl !== state.faviconUrl
+        )
+    );
+    const bookmarks = hasFaviconUpdate
+      ? this.state.bookmarks.map((bookmark) =>
+          getWebsiteOrigin(bookmark.url) === currentOrigin &&
+          bookmark.faviconUrl !== state.faviconUrl
+            ? { ...bookmark, faviconUrl: state.faviconUrl }
+            : bookmark
+        )
+      : this.state.bookmarks;
+    if (hasFaviconUpdate) saveWebBookmarks(bookmarks);
     this.setState({
       ...state,
       address: state.url || this.state.address,
+      bookmarks,
     });
   };
 
@@ -249,6 +276,12 @@ class WebNavigator extends React.Component<
           : `bookmark-${Date.now()}`,
       title,
       url,
+      faviconUrl:
+        this.state.url === url
+          ? this.state.faviconUrl
+          : existingIndex >= 0 && this.state.bookmarks[existingIndex].url === url
+            ? this.state.bookmarks[existingIndex].faviconUrl
+            : undefined,
       createdAt:
         existingIndex >= 0
           ? this.state.bookmarks[existingIndex].createdAt
@@ -428,7 +461,17 @@ class WebNavigator extends React.Component<
                     className="web-bookmark-open"
                     onClick={() => this.openUrl(bookmark.url)}
                   >
-                    <span>{bookmark.title.slice(0, 1).toUpperCase()}</span>
+                    <span className="web-bookmark-icon">
+                      <span>{bookmark.title.slice(0, 1).toUpperCase()}</span>
+                      <img
+                        src={bookmark.faviconUrl || getFallbackFaviconUrl(bookmark.url) || ""}
+                        alt=""
+                        aria-hidden="true"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    </span>
                     <strong>{bookmark.title}</strong>
                     <small>{new URL(bookmark.url).hostname}</small>
                   </button>

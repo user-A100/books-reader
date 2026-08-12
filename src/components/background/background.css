@@ -20,23 +20,35 @@
   right: 9px;
   top: 5px;
   bottom: 5px;
-  z-index: 2;
+  /* The spine is a visual overlay.  Keep it above the rendered page so it
+     remains visible even when the reader iframe has an opaque background. */
+  z-index: 6;
   /* display: flex;
   justify-content: space-between;
   place-content: center; */
   overflow: hidden;
+  pointer-events: none;
 }
 
 .book-spine {
-  width: 34px;
+  width: 32px;
   height: 100%;
   position: absolute;
-  left: calc(50% - 17px);
+  left: calc(50% - 16px);
   bottom: 0;
   box-sizing: border-box;
   z-index: 10;
-  background: linear-gradient(90deg, rgba(38, 34, 27, 0), rgba(38, 34, 27, .24) 43%, rgba(255,255,255,.2) 52%, rgba(38, 34, 27, .28) 60%, rgba(38, 34, 27, 0));
-  box-shadow: inset 1px 0 rgba(255,255,255,.18), inset -1px 0 rgba(30,25,20,.26);
+  background: linear-gradient(
+    90deg,
+    rgba(20, 16, 12, 0) 0%,
+    rgba(20, 16, 12, .06) 22%,
+    rgba(20, 16, 12, .18) 43%,
+    rgba(255, 255, 255, .16) 50%,
+    rgba(20, 16, 12, .22) 58%,
+    rgba(20, 16, 12, .06) 78%,
+    rgba(20, 16, 12, 0) 100%
+  );
+  box-shadow: inset 1px 0 rgba(255,255,255,.16), inset -1px 0 rgba(30,25,20,.18), 0 0 8px rgba(20,16,12,.08);
   pointer-events: none;
 }
 

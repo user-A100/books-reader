@@ -30,10 +30,7 @@ import {
   checkMissingBook,
   generateSyncRecord,
   getBookPartialMd5,
-  getChatLocale,
   getTaskStats,
-  getWebsiteUrl,
-  openInBrowser,
   resetKoodoSync,
   showTaskProgress,
   throttle,
@@ -43,10 +40,8 @@ import { driveList } from "../../constants/driveList";
 import SupportDialog from "../../components/dialogs/supportDialog";
 import SyncService from "../../utils/storage/syncService";
 import { LocalFileManager } from "../../utils/file/localFile";
-import packageJson from "../../../package.json";
 import { getTempToken, updateUserConfig } from "../../utils/request/user";
 import i18n from "../../i18n";
-import { getNotification } from "../../utils/request/common";
 declare var window: any;
 
 class Header extends React.Component<HeaderProps, HeaderState> {
@@ -66,7 +61,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
       width: document.body.clientWidth,
       isHidePro: false,
       isSync: false,
-      notificationCount: 0,
     };
   }
   async componentDidMount() {
@@ -149,11 +143,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
           BookUtil.redirectBook(book);
         }
       );
-      ipcRenderer.on("chat-message", async (_event: any, msg: any) => {
-        if (msg.payload.event === "new-message") {
-          ConfigService.setReaderConfig("isAllowNotification", "yes");
-        }
-      });
     } else {
       await upgradeConfig();
       const status = await LocalFileManager.getPermissionStatus();
@@ -254,19 +243,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
     _nextContext: any
   ) {
     if (nextProps.isAuthed && nextProps.isAuthed !== this.props.isAuthed) {
-      if (ConfigService.getReaderConfig("isAllowNotification") === "yes") {
-        getNotification().then((res) => {
-          if (
-            res.data &&
-            res.data.result === "ok" &&
-            res.data.unread &&
-            res.data.unread > 0
-          ) {
-            this.setState({ notificationCount: res.data.unread });
-            ConfigService.setReaderConfig("isAllowNotification", "no");
-          }
-        });
-      }
       if (ConfigService.getReaderConfig("isProUpgraded") !== "yes") {
         try {
           ConfigService.setReaderConfig("isProUpgraded", "yes");
@@ -677,57 +653,6 @@ class Header extends React.Component<HeaderProps, HeaderState> {
         className="header"
         style={this.props.isCollapsed ? { marginLeft: "40px" } : {}}
       >
-        {this.props.isAuthed && (
-          <div
-            className="header-chat-widget"
-            onClick={async () => {
-              this.setState({ notificationCount: 0 });
-              let deviceUuid = await TokenService.getFingerprint();
-              if (isElectron) {
-                window.require("electron").ipcRenderer.invoke("new-chat", {
-                  url:
-                    getWebsiteUrl() +
-                    (ConfigService.getReaderConfig("lang").startsWith("zh")
-                      ? "/zh/faq"
-                      : "/en/faq") +
-                    "?referer=app&version=" +
-                    packageJson.version +
-                    "&client=desktop&device=" +
-                    deviceUuid,
-                  locale: getChatLocale(),
-                });
-              } else {
-                openInBrowser(
-                  getWebsiteUrl() +
-                    (ConfigService.getReaderConfig("lang").startsWith("zh")
-                      ? "/zh/faq"
-                      : "/en/faq") +
-                    "?referer=app&version=" +
-                    packageJson.version +
-                    "&client=web&device=" +
-                    deviceUuid
-                );
-              }
-            }}
-          >
-            <img
-              src={require("../../assets/images/chat-widget.png")}
-              alt="logo"
-              className="login-mobile-qr"
-              style={{
-                width: "100%",
-                height: "100%",
-              }}
-            />
-            {this.state.notificationCount > 0 && (
-              <div className="header-chat-widget-badge">
-                {this.state.notificationCount > 99
-                  ? "99+"
-                  : this.state.notificationCount}
-              </div>
-            )}
-          </div>
-        )}
         <div
           className="header-search-container"
           style={this.props.isCollapsed ? { width: "369px" } : {}}

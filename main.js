@@ -39,10 +39,10 @@ let linkWindow;
 let mainView;
 let webNavigatorView;
 let webNavigatorOwner;
+let webNavigatorFaviconUrl = "";
 //multi tab
 // let mainViewList = []
 let readerWindowReadyToClose = false;
-let chatWindow;
 let dbConnection = {};
 let syncUtilCache = {};
 let pickerUtilCache = {};
@@ -63,7 +63,6 @@ const WEB_NAVIGATOR_BOOK_EXTENSIONS = new Set([
   ".cbr",
   ".cb7",
 ]);
-
 const normalizeOnlineLibraryUrl = (value) => {
   if (typeof value !== "string") return null;
   try {
@@ -103,6 +102,53 @@ const normalizeWeReadUrl = (value) => {
   }
 };
 
+const LEGADO_JSON_ENDPOINTS = new Set([
+  "getBookshelf",
+  "getChapterList",
+  "getBookContent",
+  "saveBookProgress",
+]);
+
+const buildLegadoUrl = (value) => {
+  if (!value || typeof value.baseUrl !== "string") return null;
+  if (value.serverType !== "android" && value.serverType !== "reader") {
+    return null;
+  }
+  if (!LEGADO_JSON_ENDPOINTS.has(value.endpoint)) return null;
+  try {
+    const base = new URL(value.baseUrl.trim());
+    if (
+      (base.protocol !== "http:" && base.protocol !== "https:") ||
+      base.username ||
+      base.password
+    ) {
+      return null;
+    }
+    base.search = "";
+    base.hash = "";
+    let pathname = base.pathname.replace(/\/+$/, "");
+    if (value.serverType === "reader" && !pathname.endsWith("/reader3")) {
+      pathname += "/reader3";
+    }
+    base.pathname = `${pathname}/${value.endpoint}`.replace(/\/+/g, "/");
+    const query = value.query && typeof value.query === "object" ? value.query : {};
+    ["url", "index"].forEach((name) => {
+      if (query[name] !== undefined && String(query[name]).length <= 8192) {
+        base.searchParams.set(name, String(query[name]));
+      }
+    });
+    if (value.serverType === "reader" && typeof value.accessToken === "string") {
+      const accessToken = value.accessToken.trim();
+      if (accessToken && accessToken.length <= 4096) {
+        base.searchParams.set("accessToken", accessToken);
+      }
+    }
+    return base.toString();
+  } catch {
+    return null;
+  }
+};
+
 const normalizeWebNavigatorUrl = (value) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -112,6 +158,50 @@ const normalizeWebNavigatorUrl = (value) => {
     return parsed.protocol === "https:" ? parsed.toString() : null;
   } catch {
     return null;
+  }
+};
+
+// Second-level suffixes that need a third label to form a registrable domain
+// (e.g. "example.co.uk" -> "example.co.uk", not "co.uk"). Keep the list small;
+// it only affects the pop-up same-site check, not core navigation.
+const WEB_NAVIGATOR_TWO_PART_TLDS = new Set([
+  "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "net.uk",
+  "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn",
+  "com.au", "net.au", "org.au", "edu.au",
+  "co.jp", "co.kr", "co.nz", "co.in", "co.id", "co.za",
+  "com.br", "com.mx", "com.ar", "com.tw", "com.hk", "com.sg",
+  "com.tr", "com.ua", "com.my", "com.ph", "com.vn",
+]);
+
+// Returns the registrable domain (eTLD+1) for a host, or "" on failure. Used
+// only to decide whether a pop-up belongs to the site the user is browsing.
+const getWebNavigatorRegistrableDomain = (host) => {
+  if (typeof host !== "string" || !host) return "";
+  const lower = host.toLowerCase();
+  if (/^(\d{1,3}\.){3}\d{1,3}$/.test(lower)) return lower; // IPv4 literal
+  const labels = lower.split(".");
+  if (labels.length <= 2) return lower;
+  const lastTwo = labels.slice(-2).join(".");
+  return WEB_NAVIGATOR_TWO_PART_TLDS.has(lastTwo)
+    ? labels.slice(-3).join(".")
+    : lastTwo;
+};
+
+// True when target and base are both https and share the same registrable
+// domain. Mirrors inject cross-origin popunder ads via window.open; those never
+// share the book site's domain, so this lets the real detail page through while
+// discarding the ad.
+const isWebNavigatorSameSite = (targetUrl, baseUrl) => {
+  try {
+    const target = new URL(targetUrl);
+    const base = new URL(baseUrl);
+    if (target.protocol !== "https:" || base.protocol !== "https:") return false;
+    return (
+      getWebNavigatorRegistrableDomain(target.hostname) ===
+      getWebNavigatorRegistrableDomain(base.hostname)
+    );
+  } catch {
+    return false;
   }
 };
 
@@ -154,6 +244,7 @@ const sendWebNavigatorState = (extra = {}) => {
     canGoBack: history.canGoBack(),
     canGoForward: history.canGoForward(),
     isLoading: contents.isLoading(),
+    faviconUrl: webNavigatorFaviconUrl,
     ...extra,
   });
 };
@@ -167,6 +258,7 @@ const closeWebNavigatorView = () => {
   if (!contents.isDestroyed()) contents.close({ waitForBeforeUnload: false });
   webNavigatorView = null;
   webNavigatorOwner = null;
+  webNavigatorFaviconUrl = "";
 };
 
 const loadWebNavigatorUrl = async (contents, url) => {
@@ -204,6 +296,7 @@ const getWebNavigatorDownloadPath = (libraryPath, filename) => {
 const createWebNavigatorView = (owner, libraryPath) => {
   closeWebNavigatorView();
   webNavigatorOwner = owner;
+  webNavigatorFaviconUrl = "";
   webNavigatorView = new WebContentsView({
     webPreferences: {
       nodeIntegration: false,
@@ -269,7 +362,17 @@ const createWebNavigatorView = (owner, libraryPath) => {
   );
   contents.setWindowOpenHandler(({ url }) => {
     const safeUrl = normalizeWebNavigatorUrl(url);
-    if (safeUrl) void loadWebNavigatorUrl(contents, safeUrl);
+    if (safeUrl) {
+      const currentUrl = contents.getURL();
+      // Only follow pop-ups that stay on the site the user is already on.
+      // Book mirrors inject cross-origin popunder ads through window.open on
+      // every click; without this guard the ad URL hijacks the view and
+      // replaces the real book/detail page the user tapped. Same-site detail
+      // pages still load normally; cross-origin ad pop-ups are discarded.
+      if (!currentUrl || isWebNavigatorSameSite(safeUrl, currentUrl)) {
+        void loadWebNavigatorUrl(contents, safeUrl);
+      }
+    }
     return { action: "deny" };
   });
   contents.on("will-navigate", (event, url) => {
@@ -279,6 +382,20 @@ const createWebNavigatorView = (owner, libraryPath) => {
     if (!normalizeWebNavigatorUrl(url)) event.preventDefault();
   });
   contents.on("did-start-loading", () => sendWebNavigatorState());
+  contents.on(
+    "did-start-navigation",
+    (_event, _url, _isInPlace, isMainFrame) => {
+      if (isMainFrame) webNavigatorFaviconUrl = "";
+    }
+  );
+  contents.on("page-favicon-updated", (_event, favicons) => {
+    const faviconUrl = Array.isArray(favicons)
+      ? favicons.find((favicon) => normalizeWebNavigatorUrl(favicon))
+      : "";
+    if (!faviconUrl) return;
+    webNavigatorFaviconUrl = faviconUrl;
+    sendWebNavigatorState();
+  });
   contents.on("did-stop-loading", () => sendWebNavigatorState());
   contents.on("did-navigate", () => sendWebNavigatorState({ error: "" }));
   contents.on("did-navigate-in-page", () =>
@@ -1873,40 +1990,6 @@ const createMainWin = () => {
     }
   });
 
-  ipcMain.handle("new-chat", (event, config) => {
-    if (!chatWindow && mainWin) {
-      let bounds = mainWin.getBounds();
-      chatWindow = new BrowserWindow({
-        ...options,
-        width: 450,
-        height: bounds.height,
-        x: bounds.x + (bounds.width - 450),
-        y: bounds.y,
-        frame: true,
-        hasShadow: true,
-        transparent: false,
-        webPreferences: {
-          ...options.webPreferences,
-          nodeIntegration: false,
-          contextIsolation: true,
-          preload: path.join(__dirname, "preload.js"),
-        },
-      });
-      chatWindow.loadURL(config.url);
-      chatWindow.on("close", (event) => {
-        chatWindow && chatWindow.destroy();
-        chatWindow = null;
-      });
-    } else if (chatWindow && !chatWindow.isDestroyed()) {
-      chatWindow.show();
-      chatWindow.focus();
-    }
-  });
-  ipcMain.on("chat-message", (event, msg) => {
-    if (mainWin && !mainWin.isDestroyed()) {
-      mainWin.webContents.send("chat-message", msg);
-    }
-  });
   ipcMain.handle("clear-all-data", (event, config) => {
     store.clear();
   });
@@ -2079,6 +2162,62 @@ const createMainWin = () => {
         ok: false,
         error: error instanceof Error ? error.message : String(error),
       };
+    }
+  });
+  ipcMain.handle("legado-request", async (event, value) => {
+    if (!mainWin || event.sender !== mainWin.webContents) {
+      return { ok: false, error: "Invalid sender" };
+    }
+    const url = buildLegadoUrl(value);
+    const method = value?.endpoint === "saveBookProgress" ? "POST" : "GET";
+    if (!url) return { ok: false, error: "Unsupported Legado request" };
+    const body = method === "POST" ? JSON.stringify(value?.body || {}) : undefined;
+    if (body && body.length > 256 * 1024) {
+      return { ok: false, error: "Request body is too large" };
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await net.fetch(url, {
+        method,
+        redirect: "error",
+        credentials: "omit",
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+          "User-Agent": `Books/${packageJson.version}`,
+        },
+        body,
+      });
+      if (!response.ok) {
+        return { ok: false, status: response.status, error: `HTTP ${response.status}` };
+      }
+      const contentLength = Number(response.headers.get("content-length") || 0);
+      if (contentLength > 10 * 1024 * 1024) {
+        return { ok: false, error: "Legado response is too large" };
+      }
+      const text = await response.text();
+      if (text.length > 10 * 1024 * 1024) {
+        return { ok: false, error: "Legado response is too large" };
+      }
+      try {
+        return { ok: true, status: response.status, data: JSON.parse(text) };
+      } catch {
+        return { ok: false, error: "Invalid Legado JSON response" };
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        error:
+          error?.name === "AbortError"
+            ? "Legado request timed out"
+            : error instanceof Error
+              ? error.message
+              : String(error),
+      };
+    } finally {
+      clearTimeout(timeout);
     }
   });
   ipcMain.handle("new-tab", (event, config) => {

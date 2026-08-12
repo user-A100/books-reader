@@ -2,6 +2,7 @@ export interface WebBookmark {
   id: string;
   title: string;
   url: string;
+  faviconUrl?: string;
   createdAt: number;
 }
 
@@ -11,5 +12,6 @@ export interface WebNavigatorState {
   canGoBack: boolean;
   canGoForward: boolean;
   isLoading: boolean;
+  faviconUrl?: string;
   error?: string;
 }
