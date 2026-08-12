@@ -99,7 +99,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
     ) {
       toast(
         this.props.t(
-          "Koodo Reader's web version are limited by the browser, for more powerful features, please download the desktop version."
+          "Books web version is limited by the browser; use the desktop version for more powerful features."
         )
       );
       return;
@@ -136,7 +136,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
         if (!drivePath) {
           toast.error(
             this.props.t(
-              "Can't find Koodo Reader's folder in the default iCloud path, please make sure iCloud Drive is installed and set up correctly, and you have already synced your library to iCloud Drive on the iOS version first."
+              "Can't find Books' folder in the default iCloud path. Make sure iCloud Drive is installed and set up correctly, and that you have synced your library to iCloud Drive on iOS first."
             ),
             {
               duration: 6000,
@@ -293,7 +293,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
     ) {
       toast(
         this.props.t(
-          "Koodo Reader's web version are limited by the browser, for more powerful features, please download the desktop version."
+          "Books web version is limited by the browser; use the desktop version for more powerful features."
         )
       );
       return;
@@ -412,7 +412,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
       if (extensionInfo.installed) {
         vexComfirmAsync(
           this.props.t(
-            "Please click the Koodo Reader extension icon in the upper right corner of the browser, authorize the request to this endpoint, and try again"
+            "Please click the Books extension icon in the upper right corner of the browser, authorize the request to this endpoint, and try again"
           )
         );
       }
@@ -794,7 +794,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
                 }}
               >
                 {this.props.t(
-                  "Only WebDAV service provided by Alist is directly supported in Browser, Other WebDAV services need to enable CORS to work properly. Also due to browser's security restrictions, the WebDAV service must be accessed via HTTPS protocol when you're visiting Koodo Reader via HTTPS protocol."
+                  "Only WebDAV service provided by Alist is directly supported in Browser. Other WebDAV services need CORS enabled, and must use HTTPS when you visit Books via HTTPS."
                 )}
               </div>
             )}
@@ -809,7 +809,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
                 }}
               >
                 {this.props.t(
-                  "The Koodo Reader Docker version does not support the data source feature by default. You need to modify the configuration parameters during deployment to manually enable it. Also due to browser's security restrictions, the Docker service must be accessed via HTTPS protocol when you're visiting Koodo Reader via HTTPS protocol."
+                  "The Books Docker version does not support the data-source feature by default. Enable it in the deployment configuration, and use HTTPS when you visit Books via HTTPS."
                 )}
               </div>
             )}
@@ -824,7 +824,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
                 }}
               >
                 {this.props.t(
-                  "Some S3 services are not compatible with browser environments. If you encounter connection issues, please refer to the service provider's official documentation for instructions on enabling CORS. Also due to browser's security restrictions, the S3 service must be accessed via HTTPS protocol when you're visiting Koodo Reader via HTTPS protocol."
+                  "Some S3 services are not compatible with browser environments. Enable CORS as documented by the provider, and use HTTPS when you visit Books via HTTPS."
                 )}
               </div>
             )}
@@ -1146,7 +1146,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
                   toast.success(this.props.t("Change successful"));
                   toast(
                     this.props.t(
-                      "The new sync interval will take effect after restarting Koodo Reader"
+                      "The new sync interval will take effect after restarting Books"
                     )
                   );
                 }}
@@ -1229,7 +1229,7 @@ class SyncSetting extends React.Component<SettingInfoProps, SettingInfoState> {
             <p className="setting-option-subtitle">
               <Trans>
                 {
-                  "Data in other devices is messed up, but the data in this device is normal. You can reset the sync record in this device, delete the KoodoReader/config folder in the data source(Turn off Koodo Sync if necessary), and sync again. This should resolve the issue"
+                  "Data on other devices is inconsistent while this device is normal. Reset this device's sync record, delete the Books/config folder in the data source (turn off cloud sync if necessary), then sync again."
                 }
               </Trans>
             </p>

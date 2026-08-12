@@ -591,7 +591,7 @@ class Header extends React.Component<HeaderProps, HeaderState> {
             return;
           }
           let result = await vexComfirmAsync(
-            `<h3>${this.props.t("Enable Koodo Sync")}</h3><p>${
+            `<h3>${this.props.t("Enable cloud sync")}</h3><p>${
               this.props.t(
                 "To enjoy a faster and seamless synchronization experience."
               ) +

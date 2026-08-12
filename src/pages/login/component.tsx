@@ -201,7 +201,7 @@ class Login extends React.Component<LoginProps, LoginState> {
               </div>
               <div className="login-subtitle">
                 {this.props.t(
-                  "After three years of design and development, the mobile version of Koodo Reader is finally out"
+                  "The mobile reader experience is available on supported platforms"
                 )}
               </div>
               <div
@@ -326,7 +326,7 @@ class Login extends React.Component<LoginProps, LoginState> {
                 style={{ marginTop: "50px", marginBottom: "30px" }}
               >
                 {this.props.t(
-                  "Embark on your journey of exploration with Koodo Reader Pro"
+                  "Embark on your journey of exploration with Books"
                 )}
               </div>
               <div className="login-option-box">
@@ -443,7 +443,7 @@ class Login extends React.Component<LoginProps, LoginState> {
                   </div>
                   <div className="login-term">
                     {this.props.t(
-                      "By clicking continue, you acknowledge that you have carefully read and agree to accept Koodo Reader's Terms of Service and Privacy Policy"
+                      "By clicking continue, you acknowledge that you have read and agree to the applicable Terms of Service and Privacy Policy"
                     )}
                   </div>
                 </div>
@@ -683,7 +683,7 @@ class Login extends React.Component<LoginProps, LoginState> {
                 style={{ marginTop: "80px", marginBottom: "50px" }}
               >
                 {this.props.t(
-                  "Embark on your journey of exploration with Koodo Reader Pro"
+                  "Embark on your journey of exploration with Books"
                 )}
               </div>
               <div className="login-option-box">

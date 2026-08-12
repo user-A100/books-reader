@@ -918,8 +918,8 @@ export const getDefaultTransTarget = (langList) => {
   );
   return langMap[langTarget || "English"];
 };
-export const WEBSITE_URL = "https://koodoreader.com";
-export const CN_WEBSITE_URL = "https://koodoreader.cn";
+export const WEBSITE_URL = "https://github.com/user-A100/books-reader";
+export const CN_WEBSITE_URL = WEBSITE_URL;
 export const getServerRegion = () => {
   let isUseCN = false;
   if (ConfigService.getItem("serverRegion")) {

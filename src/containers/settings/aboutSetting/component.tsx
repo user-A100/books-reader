@@ -57,7 +57,7 @@ class AboutSetting extends React.Component<SettingInfoProps, SettingInfoState> {
         <div className="setting-dialog-new-title">
           <span>Open-source notice</span>
           <span style={{ fontSize: "12px", opacity: 0.72 }}>
-            Based on Koodo Reader, licensed under Apache-2.0.
+            Based on an Apache-2.0 licensed reader project; see NOTICE.md.
           </span>
         </div>
       </>
