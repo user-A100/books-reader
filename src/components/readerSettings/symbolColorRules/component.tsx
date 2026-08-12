@@ -52,7 +52,7 @@ class SymbolColorRules extends React.Component<
       <section className="symbol-color-rules">
         <div className="single-control-switch-container">
           <span className="single-control-switch-title">
-            <Trans>Color text between symbols</Trans>
+            <Trans>Symbol coloring</Trans>
           </span>
           <span
             className="single-control-switch"

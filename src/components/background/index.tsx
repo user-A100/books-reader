@@ -11,6 +11,7 @@ const mapStateToProps = (state: stateType) => {
     scale: state.reader.scale,
     margin: state.reader.margin,
     readerBackgroundImage: state.reader.readerBackgroundImage,
+    isHideBackground: state.reader.isHideBackground,
   };
 };
 const actionCreator = {};

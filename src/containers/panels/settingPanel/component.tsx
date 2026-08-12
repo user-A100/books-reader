@@ -6,6 +6,7 @@ import DropdownList from "../../../components/readerSettings/dropdownList";
 import ModeControl from "../../../components/readerSettings/modeControl";
 import SettingSwitch from "../../../components/readerSettings/settingSwitch";
 import SymbolColorRules from "../../../components/readerSettings/symbolColorRules/component";
+import ReaderBackgroundControl from "../../../components/readerSettings/readerBackgroundControl/component";
 import { SettingPanelProps, SettingPanelState } from "./interface";
 import { Trans } from "react-i18next";
 import {
@@ -63,6 +64,11 @@ class SettingPanel extends React.Component<
     this.props.renderBookFunc();
   };
 
+  handleMimicChange = (enabled: boolean) => {
+    ConfigService.setReaderConfig("isHideBackground", enabled ? "no" : "yes");
+    this.props.handleHideBackground(!enabled);
+  };
+
   render() {
     return (
       <div
@@ -95,6 +101,12 @@ class SettingPanel extends React.Component<
           <ThemeList />
           <SymbolColorRules
             renderBookFunc={this.props.renderBookFunc}
+            t={this.props.t}
+          />
+          <ReaderBackgroundControl
+            isMimicEnabled={!this.props.isHideBackground}
+            onMimicChange={this.handleMimicChange}
+            onBackgroundChange={this.props.handleReaderBackgroundImage}
             t={this.props.t}
           />
           {sliderConfigs

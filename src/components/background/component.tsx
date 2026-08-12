@@ -86,6 +86,20 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
   }
 
   render() {
+    const imageOpacity = Math.max(
+      0,
+      Math.min(
+        100,
+        Number(ConfigService.getReaderConfig("readerBackgroundOpacity") || 78)
+      )
+    ) / 100;
+    const spineStrength = Math.max(
+      0,
+      Math.min(
+        100,
+        Number(ConfigService.getReaderConfig("readerSpineStrength") || 68)
+      )
+    ) / 100;
     return (
       <>
         <div
@@ -128,27 +142,34 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
                     ConfigService.getReaderConfig("isOSNight") === "yes"))) ||
               this.props.backgroundColor === "rgba(44,47,49,1)";
 
-            const shadowOpacity = isDarkMode ? 0.5 : undefined;
+            const shadowOpacity = (isDarkMode ? 0.56 : 0.38) * spineStrength;
 
             return (
               <>
                 <div
                   className="spine-shadow-left"
                   style={{
-                    ...(this.state.isSingle && { display: "none" }),
+                    ...((this.state.isSingle || this.props.isHideBackground) && {
+                      display: "none",
+                    }),
                     ...(shadowOpacity && { opacity: shadowOpacity }),
                   }}
                 ></div>
                 <div
                   className="book-spine"
-                  style={this.state.isSingle ? { display: "none" } : {}}
+                  style={
+                    this.state.isSingle || this.props.isHideBackground
+                      ? { display: "none" }
+                      : { opacity: spineStrength }
+                  }
                 ></div>
                 <div
                   className="spine-shadow-right"
                   style={{
-                    ...(this.state.isSingle && {
+                    ...((this.state.isSingle || this.props.isHideBackground) && {
                       position: "relative",
                       right: 0,
+                      display: "none",
                     }),
                     ...(shadowOpacity && { opacity: shadowOpacity }),
                   }}
@@ -172,6 +193,7 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
                         backgroundImage: `url("${this.state.readerBackgroundUrl}")`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
+                        opacity: imageOpacity,
                       }
                     : {}),
                 }
@@ -183,6 +205,7 @@ class Background extends React.Component<BackgroundProps, BackgroundState> {
                         backgroundImage: `url("${this.state.readerBackgroundUrl}")`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
+                        opacity: imageOpacity,
                       }
                     : {}),
                 }

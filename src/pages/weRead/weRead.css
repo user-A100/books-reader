@@ -19,6 +19,16 @@
 .weread-form-grid input:focus, .weread-search input:focus { border-color: #4d9b74; }
 .weread-actions { margin-top: 12px; text-align: right; }
 .weread-actions button, .weread-search button, .weread-more { border: 0; border-radius: 8px; min-height: 36px; padding: 0 14px; background: #4d9b74; color: white; cursor: pointer; font-size: 11px; }
+.weread-login-tabs { display: flex; gap: 7px; margin: 14px 0; }
+.weread-login-tabs button { border: 1px solid rgba(91, 104, 119, .2); border-radius: 999px; padding: 6px 12px; background: transparent; color: inherit; cursor: pointer; font-size: 11px; }
+.weread-login-tabs button.active { border-color: #4d9b74; background: rgba(77, 155, 116, .11); color: #387f5b; }
+.weread-qr-login { display: flex; align-items: center; gap: 16px; min-height: 130px; padding: 12px; border: 1px dashed rgba(77, 155, 116, .38); border-radius: 10px; background: rgba(77, 155, 116, .04); }
+.weread-qr-mark { width: 84px; height: 84px; display: grid; place-items: center; flex: 0 0 auto; position: relative; border: 7px solid #4d9b74; border-radius: 11px; color: #4d9b74; font: 600 30px/1 Georgia, serif; }
+.weread-qr-mark:before, .weread-qr-mark:after { content: ""; position: absolute; width: 14px; height: 14px; border: 4px solid #4d9b74; background: rgba(255,255,255,.7); }
+.weread-qr-mark:before { top: -7px; right: -7px; }.weread-qr-mark:after { bottom: -7px; left: -7px; }
+.weread-qr-mark i { position: absolute; right: 9px; bottom: 8px; font: 22px/1 sans-serif; }
+.weread-qr-login strong { font-size: 13px; }.weread-qr-login p { max-width: 410px; margin: 7px 0 10px; font-size: 10px; line-height: 1.6; opacity: .62; }
+.weread-qr-login button { border: 0; border-radius: 7px; padding: 8px 12px; background: #4d9b74; color: #fff; cursor: pointer; font-size: 11px; }
 .weread-search { display: flex; gap: 9px; margin: 20px 0; }
 .weread-search input { flex: 1; height: 44px; }
 .weread-search button { height: 44px; min-width: 84px; }

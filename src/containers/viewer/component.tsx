@@ -670,7 +670,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           }
         ></div>
         <PageWidget />
-        {this.props.isHideBackground ? null : this.props.currentBook.key ? (
+        {this.props.currentBook.key ? (
           <Background />
         ) : null}
       </>

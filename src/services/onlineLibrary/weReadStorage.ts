@@ -13,6 +13,7 @@ const EMPTY_CONFIG: WeReadSourceConfig = {
   vid: "",
   accessToken: "",
   userAgent: "",
+  loginMode: "qr",
 };
 
 export const getWeReadConfig = (): WeReadSourceConfig => {

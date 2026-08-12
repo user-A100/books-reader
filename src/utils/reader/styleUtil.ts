@@ -100,10 +100,19 @@ class styleUtil {
 
     // JSON.stringify gives the data URL a quoted CSS-safe representation.
     const cssUrl = JSON.stringify(imageUrl);
+    const opacity = Math.max(
+      0,
+      Math.min(
+        100,
+        Number(ConfigService.getReaderConfig("readerBackgroundOpacity") || 78)
+      )
+    ) / 100;
+    const baseColor =
+      ConfigService.getReaderConfig("backgroundColor") || "rgb(255, 255, 255)";
     styleElement.textContent = `
       html {
-        background-color: transparent !important;
-        background-image: url(${cssUrl}) !important;
+        background-color: ${baseColor} !important;
+        background-image: linear-gradient(color-mix(in srgb, ${baseColor} ${(1 - opacity) * 100}%, transparent), color-mix(in srgb, ${baseColor} ${(1 - opacity) * 100}%, transparent)), url(${cssUrl}) !important;
         background-size: cover !important;
         background-position: center !important;
         background-attachment: fixed !important;

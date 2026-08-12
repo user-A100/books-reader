@@ -6,6 +6,7 @@ export interface BackgroundProps {
   isSettingLocked: boolean;
   backgroundColor: string;
   readerBackgroundImage?: string;
+  isHideBackground: boolean;
 }
 export interface BackgroundState {
   isSingle: boolean;

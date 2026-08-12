@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { WeReadBook, WeReadChapter, WeReadSourceConfig } from "../../models/WeRead";
 import { getWeReadBook, getWeReadChapters, searchWeRead } from "../../services/onlineLibrary/weRead";
 import { getWeReadConfig, hasWeReadCredentials, saveWeReadConfig } from "../../services/onlineLibrary/weReadStorage";
+import { openInBrowser } from "../../utils/common";
 import "./weRead.css";
 
 interface WeReadProps {
@@ -22,6 +23,7 @@ interface WeReadState {
   isLoadingMore: boolean;
   isLoadingDetail: boolean;
   error: string;
+  loginMode: "qr" | "manual";
 }
 
 const safeExternalBookUrl = (bookId: string) =>
@@ -40,6 +42,7 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
     isLoadingMore: false,
     isLoadingDetail: false,
     error: "",
+    loginMode: getWeReadConfig().loginMode || "qr",
   };
 
   updateConfig = (patch: Partial<WeReadSourceConfig>) => {
@@ -47,9 +50,18 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
   };
 
   saveConfig = () => {
-    const config = saveWeReadConfig(this.state.config);
+    const config = saveWeReadConfig({
+      ...this.state.config,
+      loginMode: this.state.loginMode,
+    });
     this.setState({ config });
     toast.success("微信读书配置已保存");
+  };
+
+  openQrLogin = () => {
+    const url = "https://weread.qq.com/";
+    openInBrowser(url);
+    toast("请在打开的微信读书官方网页中扫码登录。完成后如需 API 搜索，请切换到手动模式填写授权参数。");
   };
 
   handleSearch = async (page = 1) => {
@@ -106,15 +118,26 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
           <div><p>WECHAT READING</p><h2><Trans>Authorization parameters</Trans></h2></div>
           <span>{hasWeReadCredentials(config) ? "READY" : "SETUP"}</span>
         </div>
-        <p className="weread-help">
-          <Trans>Use parameters from your own authorized WeRead app session. They are stored locally on this device.</Trans>
-        </p>
-        <div className="weread-form-grid">
-          <label><span>vid</span><input value={config.vid} onChange={(event) => this.updateConfig({ vid: event.target.value })} /></label>
-          <label><span>accessToken</span><input type="password" value={config.accessToken} onChange={(event) => this.updateConfig({ accessToken: event.target.value })} /></label>
-          <label className="weread-wide"><span>User-Agent</span><input value={config.userAgent} onChange={(event) => this.updateConfig({ userAgent: event.target.value })} /></label>
+        <div className="weread-login-tabs">
+          <button className={this.state.loginMode === "qr" ? "active" : ""} onClick={() => this.setState({ loginMode: "qr" })}>扫码登录</button>
+          <button className={this.state.loginMode === "manual" ? "active" : ""} onClick={() => this.setState({ loginMode: "manual" })}>手动配置</button>
         </div>
-        <div className="weread-actions"><button onClick={this.saveConfig}><Trans>Save configuration</Trans></button></div>
+        {this.state.loginMode === "qr" ? (
+          <div className="weread-qr-login">
+            <div className="weread-qr-mark"><span>微</span><i>⌁</i></div>
+            <div><strong>在微信读书官方网页扫码登录</strong><p>会在独立、安全的官方网页中完成登录；Books 不会读取或保存你的微信账号密码。</p><button onClick={this.openQrLogin}>打开扫码登录</button></div>
+          </div>
+        ) : (
+          <>
+            <p className="weread-help"><Trans>Use parameters from your own authorized WeRead app session. They are stored locally on this device.</Trans></p>
+            <div className="weread-form-grid">
+              <label><span>vid</span><input value={config.vid} onChange={(event) => this.updateConfig({ vid: event.target.value })} /></label>
+              <label><span>accessToken</span><input type="password" value={config.accessToken} onChange={(event) => this.updateConfig({ accessToken: event.target.value })} /></label>
+              <label className="weread-wide"><span>User-Agent</span><input value={config.userAgent} onChange={(event) => this.updateConfig({ userAgent: event.target.value })} /></label>
+            </div>
+            <div className="weread-actions"><button onClick={this.saveConfig}><Trans>Save configuration</Trans></button></div>
+          </>
+        )}
       </section>
     );
   }

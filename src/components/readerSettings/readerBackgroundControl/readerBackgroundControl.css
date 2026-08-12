@@ -1,0 +1,12 @@
+.reader-background-control { margin: 14px 20px 8px; padding: 12px; border: 1px solid rgba(94, 120, 109, .22); border-radius: 9px; background: rgba(121, 158, 136, .055); }
+.reader-background-control-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.reader-background-control-heading span { display: block; font-size: 14px; font-weight: 600; }
+.reader-background-control-heading small { display: block; max-width: 168px; margin-top: 4px; overflow: hidden; color: var(--color-text-secondary, #888); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.reader-background-control button { border: 1px solid rgba(79, 139, 108, .45); border-radius: 5px; padding: 5px 8px; background: rgba(121, 158, 136, .1); color: inherit; cursor: pointer; font-size: 11px; }
+.reader-background-control button:hover { background: rgba(121, 158, 136, .2); }
+.reader-background-clear { margin-top: 8px; border-color: transparent !important; padding: 0 !important; background: transparent !important; color: var(--color-text-secondary, #888) !important; text-decoration: underline; }
+.reader-background-slider { display: block; margin-top: 12px; }
+.reader-background-slider span { display: flex; justify-content: space-between; font-size: 11px; }
+.reader-background-slider b { color: #56876a; font: 10px Consolas, monospace; }
+.reader-background-slider input { width: 100%; margin: 7px 0 0; accent-color: #56876a; }
+.reader-background-mimic { display: flex; align-items: center; justify-content: space-between; margin-top: 13px; font-size: 12px; }

@@ -7,6 +7,7 @@ export interface WeReadSourceConfig {
   vid: string;
   accessToken: string;
   userAgent: string;
+  loginMode?: "qr" | "manual";
 }
 
 export interface WeReadBook {

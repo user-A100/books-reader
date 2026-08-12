@@ -562,11 +562,6 @@ export const readerSettingList = [
     propName: "isHideHeader",
     isPDF: true,
   },
-  {
-    title: "Hide mimical background",
-    propName: "isHideBackground",
-    isPDF: true,
-  },
 ];
 export const officialTranList = {
   Automatic: "Automatic",

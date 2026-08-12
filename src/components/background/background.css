@@ -28,17 +28,16 @@
 }
 
 .book-spine {
-  position: absolute;
-  width: 1px;
+  width: 34px;
   height: 100%;
   position: absolute;
-  left: 50%;
-  /* bottom: 100%; */
+  left: calc(50% - 17px);
   bottom: 0;
-  /* border: 2px solid rgba(191, 191, 191, 1); */
-  border-left: none;
   box-sizing: border-box;
   z-index: 10;
+  background: linear-gradient(90deg, rgba(38, 34, 27, 0), rgba(38, 34, 27, .24) 43%, rgba(255,255,255,.2) 52%, rgba(38, 34, 27, .28) 60%, rgba(38, 34, 27, 0));
+  box-shadow: inset 1px 0 rgba(255,255,255,.18), inset -1px 0 rgba(30,25,20,.26);
+  pointer-events: none;
 }
 
 .spine-shadow-left {
@@ -50,7 +49,7 @@
   z-index: 10;
   position: absolute;
   left: calc(50% - 68px);
-  opacity: 0.125;
+  opacity: 0.38;
 }
 
 .spine-shadow-right {
@@ -62,7 +61,7 @@
   box-sizing: border-box;
   position: absolute;
   right: calc(50% - 68px);
-  opacity: 0.125;
+  opacity: 0.38;
 }
 .single-background {
   width: 60vw;
