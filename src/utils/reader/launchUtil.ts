@@ -1,0 +1,141 @@
+import {
+  browserName,
+  browserVersion,
+  isElectron,
+  osName,
+  osVersion,
+} from "react-device-detect";
+import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import packageJson from "../../../package.json";
+import BackgroundUtil from "../file/backgroundUtil";
+import FontUtil from "../file/fontUtil";
+
+export const syncNativeThemeSource = (appSkin: string) => {
+  if (!isElectron) {
+    return;
+  }
+  const { ipcRenderer } = window.require("electron");
+  ipcRenderer.invoke("set-native-theme-source", appSkin || "system");
+};
+
+export const initTheme = () => {
+  const style = document.createElement("link");
+  style.rel = "stylesheet";
+  let isNight = false;
+  if (isElectron) {
+    const { ipcRenderer } = window.require("electron");
+    isNight = ipcRenderer.sendSync("system-color");
+  } else {
+    isNight =
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  ConfigService.setReaderConfig("isOSNight", isNight ? "yes" : "no");
+  ConfigService.setItem("appVersion", packageJson.version);
+  ConfigService.setItem(
+    "appPlatform",
+    isElectron ? osName + " " + osVersion : browserName + " " + browserVersion
+  );
+  if (!ConfigService.getReaderConfig("appSkin")) {
+    ConfigService.setReaderConfig("appSkin", "system");
+    //new user don't need to upgrade
+    ConfigService.setItem("isUpgradedConfig", "yes");
+    ConfigService.setItem("isUpgradedStorage", "yes");
+    if (isNight) {
+    }
+  }
+  syncNativeThemeSource(ConfigService.getReaderConfig("appSkin"));
+
+  if (
+    ConfigService.getReaderConfig("appSkin") === "night" ||
+    (ConfigService.getReaderConfig("appSkin") === "system" &&
+      ConfigService.getReaderConfig("isOSNight") === "yes")
+  ) {
+    style.href = "./assets/styles/dark.css";
+  } else {
+    style.href = "./assets/styles/default.css";
+  }
+  document.head.appendChild(style);
+};
+export const initSystemFont = async () => {
+  await applyCustomSystemFont();
+};
+
+export const applyCustomSystemFont = async () => {
+  const systemFont = ConfigService.getReaderConfig("systemFont");
+  const body = document.getElementsByTagName("body")[0];
+  if (!body) return;
+
+  if (!systemFont) {
+    body.removeAttribute("style");
+    const styleEl = document.getElementById("custom-system-font-style");
+    if (styleEl) styleEl.textContent = "";
+    return;
+  }
+
+  if (FontUtil.isCustomFont(systemFont)) {
+    const url = await FontUtil.getFontUrl(systemFont);
+    if (!url) return;
+    let styleEl = document.getElementById("custom-system-font-style");
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = "custom-system-font-style";
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      @font-face {
+        font-family: "${systemFont}";
+        src: url("${url}");
+      }
+    `;
+    body.setAttribute(
+      "style",
+      `font-family:"${systemFont}"!important`
+    );
+  } else {
+    const styleEl = document.getElementById("custom-system-font-style");
+    if (styleEl) styleEl.textContent = "";
+    body.setAttribute("style", "font-family:" + systemFont + "!important");
+  }
+};
+
+export const applyCustomSystemCSS = () => {
+  const isCustomSystemCSS =
+    ConfigService.getReaderConfig("isCustomSystemCSS") === "yes";
+  const customSystemCSS =
+    ConfigService.getReaderConfig("customSystemCSS") || "";
+  let styleElement = document.getElementById("custom-system-style");
+  if (isCustomSystemCSS && customSystemCSS) {
+    if (styleElement) {
+      styleElement.textContent = customSystemCSS;
+    } else {
+      const style = document.createElement("style");
+      style.id = "custom-system-style";
+      style.textContent = customSystemCSS;
+      document.head.appendChild(style);
+    }
+  } else if (styleElement) {
+    styleElement.textContent = "";
+  }
+};
+
+export const applyAppBackgroundImage = async () => {
+  const imageId = ConfigService.getReaderConfig("appBackgroundImage") || "";
+  const root = document.getElementById("root");
+  if (!root) return;
+  if (imageId) {
+    const meta = BackgroundUtil.getImageMeta(imageId);
+    const imageUrl = await BackgroundUtil.loadImage(imageId, meta?.extension);
+    if (imageUrl) {
+      root.style.backgroundImage = `url("${imageUrl}")`;
+      root.style.backgroundSize = "cover";
+      root.style.backgroundPosition = "center";
+      root.style.backgroundAttachment = "fixed";
+      return;
+    }
+  }
+  root.style.backgroundImage = "";
+  root.style.backgroundSize = "";
+  root.style.backgroundPosition = "";
+  root.style.backgroundAttachment = "";
+};

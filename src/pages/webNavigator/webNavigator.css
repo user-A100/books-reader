@@ -1,0 +1,148 @@
+.web-navigator-page {
+  position: absolute;
+  top: 70px;
+  left: 220px;
+  width: calc(100vw - 220px);
+  height: calc(100vh - 108px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 18px clamp(18px, 3vw, 42px) 24px;
+  color: inherit;
+  overflow: hidden;
+}
+
+.web-navigator-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.web-navigator-header p,
+.web-navigator-intro > p {
+  margin: 0 0 3px;
+  font-size: 9px;
+  letter-spacing: .16em;
+  opacity: .5;
+}
+.web-navigator-header h2 { margin: 0; font-size: 24px; font-weight: 580; }
+.web-navigator-header > span { padding-bottom: 3px; font-size: 10px; opacity: .52; }
+.web-navigator-vault-note { display: grid; max-width: min(48vw, 420px); gap: 3px; padding-bottom: 2px; text-align: right; }
+.web-navigator-vault-note span { font-size: 10px; opacity: .58; }
+.web-navigator-vault-note small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 8px/1.2 Consolas, monospace; color: #5f9473; opacity: .8; }
+
+.web-navigator-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--color-border, rgba(128, 128, 128, .22));
+  border-radius: 12px;
+  background: var(--color-card-bg, rgba(128, 128, 128, .045));
+}
+.web-navigator-controls { display: flex; gap: 3px; }
+.web-navigator-toolbar button {
+  height: 32px;
+  min-width: 32px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.web-navigator-toolbar button:hover:not(:disabled) { background: var(--color-hover, rgba(128, 128, 128, .1)); }
+.web-navigator-toolbar button:disabled { cursor: default; opacity: .25; }
+.web-navigator-address {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--color-border, rgba(128, 128, 128, .24));
+  border-radius: 8px;
+  background: var(--color-background, rgba(255, 255, 255, .6));
+}
+.web-navigator-address:focus-within { border-color: var(--color-theme-color, #0179ca); box-shadow: 0 0 0 3px rgba(1, 121, 202, .08); }
+.web-navigator-address > span { margin-right: 5px; font: 10px/1 Consolas, monospace; color: #43a775; }
+.web-navigator-address input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font-size: 12px; }
+.web-navigator-address i { width: 10px; height: 10px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: web-navigator-spin .7s linear infinite; opacity: .5; }
+.web-navigator-toolbar .web-navigator-go { min-width: 52px; background: var(--color-theme-color, #0179ca); color: #fff; }
+.web-navigator-bookmark-current { font-size: 15px; }
+
+.web-bookmark-editor {
+  display: grid;
+  grid-template-columns: minmax(120px, .7fr) minmax(180px, 1.3fr) auto auto;
+  gap: 9px;
+  align-items: end;
+  padding: 12px 14px;
+  margin-top: 9px;
+  border-left: 3px solid #86bf8f;
+  border-radius: 8px;
+  background: rgba(134, 191, 143, .08);
+}
+.web-bookmark-editor > div { display: grid; gap: 5px; }
+.web-bookmark-editor label { font-size: 9px; letter-spacing: .04em; opacity: .55; }
+.web-bookmark-editor input { height: 31px; box-sizing: border-box; border: 1px solid var(--color-border, rgba(128, 128, 128, .25)); border-radius: 6px; padding: 0 9px; outline: 0; background: var(--color-background, #fff); color: inherit; }
+.web-bookmark-editor input:focus { border-color: #86bf8f; }
+.web-bookmark-editor button { height: 31px; border: 1px solid #86bf8f; border-radius: 6px; padding: 0 11px; background: rgba(134, 191, 143, .14); color: inherit; cursor: pointer; font-size: 11px; }
+.web-bookmark-editor .web-bookmark-editor-cancel { border-color: var(--color-border, rgba(128, 128, 128, .25)); background: transparent; }
+
+.web-navigator-error { margin-top: 8px; padding: 8px 11px; border-left: 3px solid #d65b5b; background: rgba(214, 91, 91, .08); font-size: 11px; }
+.web-navigator-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  margin-top: 10px;
+  border: 1px solid var(--color-border, rgba(128, 128, 128, .18));
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--color-background, #fff);
+}
+.web-navigator-viewport.is-browser-open { border-radius: 8px; }
+.web-navigator-native-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 11px; opacity: .45; }
+.web-navigator-native-placeholder span { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: web-navigator-spin .7s linear infinite; }
+
+.web-navigator-home { height: 100%; overflow: auto; padding: clamp(22px, 4vw, 48px); box-sizing: border-box; }
+.web-navigator-intro { max-width: 610px; }
+.web-navigator-intro > p { color: #4e9e73; opacity: 1; }
+.web-navigator-intro h1 { margin: 7px 0 8px; font: 500 clamp(25px, 3.4vw, 42px)/1.1 Georgia, "Noto Serif SC", serif; letter-spacing: -.025em; }
+.web-navigator-intro > span { display: block; max-width: 520px; font-size: 12px; line-height: 1.65; opacity: .58; }
+.web-navigator-intro > button { margin-top: 18px; height: 35px; border: 0; border-radius: 7px; padding: 0 14px; background: var(--color-theme-color, #0179ca); color: #fff; cursor: pointer; font-size: 11px; }
+.web-navigator-intro > button span { margin-right: 5px; }
+
+.web-bookmark-section { margin-top: 38px; }
+.web-bookmark-section-title { display: flex; align-items: center; gap: 8px; padding-bottom: 9px; border-bottom: 1px solid var(--color-border, rgba(128, 128, 128, .17)); }
+.web-bookmark-section-title h2 { margin: 0; font-size: 14px; font-weight: 560; }
+.web-bookmark-section-title > span { display: grid; place-items: center; min-width: 20px; height: 20px; border-radius: 10px; background: var(--color-hover, rgba(128, 128, 128, .1)); font-size: 9px; }
+.web-bookmark-empty { min-height: 150px; display: grid; place-items: center; align-content: center; text-align: center; opacity: .48; }
+.web-bookmark-empty > span { font-size: 24px; }
+.web-bookmark-empty p { margin: 9px 0 4px; font-size: 12px; }
+.web-bookmark-empty small { font-size: 10px; }
+.web-bookmark-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; padding-top: 13px; }
+.web-bookmark-grid article { position: relative; min-width: 0; border: 1px solid var(--color-border, rgba(128, 128, 128, .17)); border-radius: 10px; background: var(--color-card-bg, rgba(128, 128, 128, .035)); overflow: hidden; transition: transform .16s ease, border-color .16s ease; }
+.web-bookmark-grid article:hover { transform: translateY(-2px); border-color: rgba(134, 191, 143, .7); }
+.web-bookmark-open { width: 100%; padding: 13px 12px 9px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.web-bookmark-open > span { display: grid; place-items: center; width: 29px; height: 29px; margin-bottom: 13px; border-radius: 8px; background: rgba(134, 191, 143, .16); color: #4e9e73; font: 600 13px Georgia, serif; }
+.web-bookmark-open strong, .web-bookmark-open small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.web-bookmark-open strong { font-size: 12px; }
+.web-bookmark-open small { margin-top: 4px; font-size: 9px; opacity: .45; }
+.web-bookmark-grid article > div { display: flex; justify-content: flex-end; gap: 2px; padding: 0 7px 7px; }
+.web-bookmark-grid article > div button { border: 0; padding: 3px 5px; background: transparent; color: inherit; cursor: pointer; font-size: 9px; opacity: .45; }
+.web-bookmark-grid article > div button:hover { opacity: 1; }
+
+.web-navigator-page button:focus-visible,
+.web-navigator-page input:focus-visible { outline: 2px solid var(--color-theme-color, #0179ca); outline-offset: 2px; }
+@keyframes web-navigator-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .web-navigator-header > span { display: none; }
+  .web-navigator-controls button:nth-child(3) { display: none; }
+  .web-bookmark-editor { grid-template-columns: 1fr 1fr; }
+  .web-bookmark-editor > div { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .web-navigator-address i,
+  .web-navigator-native-placeholder span { animation: none; }
+  .web-bookmark-grid article { transition: none; }
+}

@@ -1,0 +1,117 @@
+.menu-list {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(2, auto);
+  width: 252px;
+  padding: 6px 8px 10px;
+  gap: 4px;
+  box-sizing: border-box;
+  justify-items: center;
+  align-items: center;
+  padding-bottom: 5px;
+}
+.note-option,
+.highlight-option,
+.translation-option,
+.speaker-option,
+.speech-start-option,
+.assistant-option,
+.setting-option,
+.search-book-option,
+.browser-option,
+.dict-option,
+.wikipedia-option,
+.copy-option {
+  height: 36px;
+  width: 36px;
+  font-size: 14px !important;
+  line-height: 15px !important;
+  opacity: 1;
+  text-align: center;
+  display: flex;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: 0.1s;
+  justify-content: center;
+  align-items: center;
+  font-weight: 500;
+  margin: 0;
+}
+.note-option:hover,
+.highlight-option:hover,
+.translation-option:hover,
+.speaker-option:hover,
+.speech-start-option:hover,
+.assistant-option:hover,
+.setting-option:hover,
+.search-book-option:hover,
+.browser-option:hover,
+.dict-option:hover,
+.wikipedia-option:hover,
+.copy-option:hover {
+  border-radius: 5px;
+}
+
+.note-icon,
+.translation-icon,
+.speaker-icon,
+.speech-start-icon,
+.assistant-icon,
+.setting-icon,
+.search-book-icon,
+.browser-icon,
+.dict-icon,
+.baidu-icon,
+.bing-icon,
+.copy-icon,
+.wikipedia-icon,
+.highlight-icon {
+  line-height: 1 !important;
+  font-size: 22px;
+}
+.translation-icon {
+  color: #f16464;
+}
+.copy-icon {
+  color: #ff9900;
+}
+.highlight-icon {
+  color: #5e7fff;
+}
+.note-icon {
+  color: #109870;
+}
+.speaker-icon {
+  color: #b266cb;
+  font-size: 24px;
+  margin-left: 0;
+}
+.speech-start-icon {
+  color: #f16464;
+  font-size: 22px;
+}
+.search-book-icon {
+  color: #6867d1;
+}
+.browser-icon {
+  color: #01b7bc;
+  font-size: 22px;
+}
+.dict-icon {
+  color: #2084e8;
+  font-size: 21px;
+}
+.assistant-icon {
+  color: #0aa89e;
+  font-size: 20px;
+}
+.wikipedia-icon {
+  font-size: 18px;
+  opacity: 0.83;
+}
+.baidu-icon {
+  color: rgb(252, 204, 136);
+}
+.bing-icon {
+  color: rgb(252, 204, 136);
+}

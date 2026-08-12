@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Books</title>
+  <desc id="desc">A simple bookshelf with two upright books and one book leaning against them.</desc>
+  <rect x="16" y="16" width="480" height="480" rx="92" fill="#383A38"/>
+  <g fill="#383A38" stroke="#F6F3E7" stroke-width="28" stroke-linejoin="round">
+    <path d="M94 395h324v49H94z" fill="#F6F3E7" stroke="none"/>
+    <path d="M119 153h79v241h-79z"/>
+    <path d="M214 98h80v296h-80z"/>
+    <g transform="rotate(-24 351 259)">
+      <path d="M312 134h78v260h-78z"/>
+    </g>
+  </g>
+</svg>

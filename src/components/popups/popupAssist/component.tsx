@@ -1,0 +1,808 @@
+import React from "react";
+import "./popupAssist.css";
+import { PopupAssistProps, PopupAssistState, AiChatMessage } from "./interface";
+import {
+  ConfigService,
+  KookitConfig,
+} from "../../../assets/lib/kookit-extra-browser.min";
+import Parser from "html-react-parser";
+import DOMPurify from "dompurify";
+import { Trans } from "react-i18next";
+import { handleContextMenu } from "../../../utils/common";
+import toast from "react-hot-toast";
+import { saveAs } from "file-saver";
+import { getAnswerStream } from "../../../utils/request/reader";
+import { chatStream } from "../../../utils/request/common";
+import { marked } from "marked";
+import { sampleQuestion } from "../../../constants/settingList";
+class PopupAssist extends React.Component<PopupAssistProps, PopupAssistState> {
+  chatBoxRef: React.RefObject<HTMLDivElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  answerTextAccumulator: string = "";
+  updateInterval: ReturnType<typeof setInterval> | null = null;
+  isHydrating = false;
+
+  constructor(props: PopupAssistProps) {
+    super(props);
+    this.state = {
+      answer: "",
+      aiService: ConfigService.getReaderConfig("aiService") || "",
+      isAddNew: false,
+      isWaiting: false,
+      question: "",
+      chatHistory: [],
+      askHistory: [],
+      mode: "ask",
+      inputQuestion: "",
+    };
+    this.chatBoxRef = React.createRef();
+    this.textareaRef = React.createRef();
+  }
+
+  MAX_HISTORY_LENGTH = 50;
+
+  AI_ASK_HISTORY_KEY = "aiAskHistory";
+  AI_CHAT_HISTORY_KEY = "aiChatHistory";
+
+  HISTORY_KEY_BY_MODE: Record<string, string> = {
+    ask: this.AI_ASK_HISTORY_KEY,
+    chat: this.AI_CHAT_HISTORY_KEY,
+  };
+
+  loadHistory = (bookKey: string, mode: "ask" | "chat"): AiChatMessage[] => {
+    if (!bookKey) {
+      return [];
+    }
+    const key = this.HISTORY_KEY_BY_MODE[mode];
+    return ConfigService.getObjectConfig(bookKey, key, []);
+  };
+
+  saveHistory = (
+    bookKey: string,
+    mode: "ask" | "chat",
+    messages: AiChatMessage[]
+  ): void => {
+    if (!bookKey) {
+      return;
+    }
+    const key = this.HISTORY_KEY_BY_MODE[mode];
+    const trimmed =
+      messages.length <= this.MAX_HISTORY_LENGTH
+        ? messages
+        : messages.slice(messages.length - this.MAX_HISTORY_LENGTH);
+    ConfigService.setObjectConfig(bookKey, trimmed, key);
+  };
+
+  startUpdateInterval() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+    }
+    this.updateInterval = setInterval(() => {
+      if (this.answerTextAccumulator) {
+        this.setState({ answer: this.answerTextAccumulator });
+        if (ConfigService.getReaderConfig("isManualScroll") !== "yes") {
+          this.scrollToBottom();
+        }
+      }
+    }, 150);
+  }
+
+  stopUpdateInterval(finalAnswer?: string) {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+    if (finalAnswer !== undefined) {
+      this.setState({ answer: finalAnswer });
+    }
+  }
+  loadChatHistory() {
+    const bookKey = this.props.currentBook?.key;
+    if (!bookKey) {
+      return;
+    }
+    this.isHydrating = true;
+    this.setState(
+      {
+        askHistory: this.loadHistory(bookKey, "ask"),
+        chatHistory: this.loadHistory(bookKey, "chat"),
+      },
+      () => {
+        this.isHydrating = false;
+        if (ConfigService.getReaderConfig("isManualScroll") !== "yes") {
+          this.scrollToBottom();
+        }
+      }
+    );
+  }
+  saveChatHistory() {
+    const bookKey = this.props.currentBook?.key;
+    if (!bookKey || this.isHydrating) {
+      return;
+    }
+    this.saveHistory(bookKey, "ask", this.state.askHistory);
+    this.saveHistory(bookKey, "chat", this.state.chatHistory);
+  }
+  componentDidMount(): void {
+    this.loadChatHistory();
+    if (this.props.quoteText) {
+      this.setState({ inputQuestion: this.props.quoteText + "\n" }, () => {
+        this.autoResizeTextarea();
+        const el = this.textareaRef.current;
+        if (el) {
+          el.focus();
+          const len = el.value.length;
+          el.setSelectionRange(len, len);
+        }
+      });
+      this.props.handleQuoteText("");
+    }
+    if (!this.state.aiService) {
+      let pluginList = this.props.plugins.filter(
+        (item) => item.type === "assistant"
+      );
+      if (pluginList.length > 0) {
+        this.setState({
+          aiService: pluginList[0].key,
+        });
+        ConfigService.setReaderConfig("aiService", pluginList[0].key);
+      } else {
+        this.setState({
+          isAddNew: true,
+        });
+      }
+    }
+  }
+  componentDidUpdate(
+    prevProps: PopupAssistProps,
+    prevState: PopupAssistState
+  ): void {
+    if (prevProps.currentBook?.key !== this.props.currentBook?.key) {
+      this.loadChatHistory();
+      return;
+    }
+    if (this.isHydrating) {
+      return;
+    }
+    const bookKey = this.props.currentBook?.key;
+    if (!bookKey) {
+      return;
+    }
+    if (prevState.askHistory !== this.state.askHistory) {
+      this.saveHistory(bookKey, "ask", this.state.askHistory);
+    }
+    if (prevState.chatHistory !== this.state.chatHistory) {
+      this.saveHistory(bookKey, "chat", this.state.chatHistory);
+    }
+  }
+  componentWillUnmount(): void {
+    this.saveChatHistory();
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+  }
+  autoResizeTextarea = () => {
+    const el = this.textareaRef.current;
+    if (!el) return;
+    const style = getComputedStyle(el);
+    const lineHeight = parseFloat(style.lineHeight) || 20;
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingBottom = parseFloat(style.paddingBottom) || 0;
+    const maxLines = 5;
+    const maxHeight = lineHeight * maxLines + paddingTop + paddingBottom;
+    // 先重置为最小高度，让 scrollHeight 反映真实内容高度
+    el.style.height = "0px";
+    const contentHeight = el.scrollHeight;
+    if (contentHeight >= maxHeight) {
+      el.style.height = maxHeight + "px";
+      el.style.overflowY = "auto";
+    } else {
+      el.style.height = contentHeight + "px";
+      el.style.overflowY = "hidden";
+    }
+  };
+  scrollToBottom = () => {
+    if (this.chatBoxRef.current) {
+      const scrollHeight = this.chatBoxRef.current.scrollHeight;
+      const height = this.chatBoxRef.current.clientHeight;
+      const maxScrollTop = scrollHeight - height;
+      this.chatBoxRef.current.scrollTop = maxScrollTop > 0 ? maxScrollTop : 0;
+    }
+  };
+  async handleAnswer() {
+    let originalText =
+      this.state.mode === "ask"
+        ? this.props.originalText
+            .replace(/(\r\n|\n|\r)/gm, "")
+            .replace(/-/gm, "")
+            // Remove common garbage characters
+            .replace(
+              /[^\x20-\x7E\u00A0-\u00FF\u0100-\u017F\u4E00-\u9FFF\u3000-\u303F]/g,
+              ""
+            )
+            // Remove consecutive spaces
+            .replace(/\s{2,}/g, " ")
+            .trim()
+        : "";
+    if (
+      (!this.state.aiService ||
+        this.props.plugins.findIndex(
+          (item) => item.key === this.state.aiService
+        ) === -1) &&
+      !this.props.isAuthed
+    ) {
+      this.setState({ isAddNew: true });
+    }
+    this.handleDoAnswer(originalText);
+  }
+  handleDoAnswer = async (text: string) => {
+    try {
+      if (
+        this.state.aiService &&
+        this.state.aiService === "custom-ai-assistant-plugin"
+      ) {
+        let plugin = this.props.plugins.find(
+          (item) => item.key === "custom-ai-assistant-plugin"
+        );
+        if (!plugin) {
+          return;
+        }
+        let systemPrompt =
+          ConfigService.getReaderConfig("aiAssistancePrompt") ||
+          KookitConfig.DefaultPrompts.aiAssistance;
+        if (this.state.mode === "ask") {
+          systemPrompt = systemPrompt.replace("{text}", text);
+        } else {
+          systemPrompt = systemPrompt.replace("{text}", "");
+        }
+        let config: any = plugin.config || {};
+        let chatHistory =
+          this.state.mode === "ask"
+            ? this.state.askHistory
+            : this.state.chatHistory;
+        // Build messages: system prompt as first user message, then history, then current question
+        const historyMessages = chatHistory.slice(0, -1); // exclude the latest user message we just added
+        const currentQuestion =
+          chatHistory[chatHistory.length - 1]?.content || this.state.question;
+        if (!currentQuestion) {
+          return;
+        }
+        this.answerTextAccumulator = "";
+        this.startUpdateInterval();
+        await chatStream(
+          config.endpoint,
+          config.providerId,
+          config.apiKey,
+          config.modelId,
+          systemPrompt + "\n\nUser question: " + currentQuestion,
+          historyMessages,
+          (result) => {
+            if (result && result.done) {
+              return;
+            }
+            if (result && result.text) {
+              if (!this.answerTextAccumulator) {
+                this.setState({ isWaiting: false });
+              }
+              this.answerTextAccumulator += result.text;
+            }
+          }
+        );
+        this.stopUpdateInterval(this.answerTextAccumulator);
+        const finalAnswer = this.answerTextAccumulator;
+        this.answerTextAccumulator = "";
+        if (this.state.mode === "ask") {
+          this.setState({
+            askHistory: [
+              ...this.state.askHistory,
+              { role: "assistant", content: finalAnswer },
+            ],
+            answer: "",
+            question: "",
+            isWaiting: false,
+          });
+        } else {
+          this.setState({
+            chatHistory: [
+              ...this.state.chatHistory,
+              { role: "assistant", content: finalAnswer },
+            ],
+            answer: "",
+            question: "",
+            isWaiting: false,
+          });
+        }
+        if (ConfigService.getReaderConfig("isManualScroll") !== "yes") {
+          this.scrollToBottom();
+        }
+      } else if (
+        this.state.aiService &&
+        this.state.aiService !== "official-ai-assistant-plugin"
+      ) {
+      } else if (this.props.isAuthed) {
+        let plugin = this.props.plugins.find(
+          (item) => item.key === "official-ai-assistant-plugin"
+        );
+        if (!plugin) {
+          return;
+        }
+        this.answerTextAccumulator = "";
+        this.startUpdateInterval();
+        let res = await getAnswerStream(
+          text,
+          this.state.question,
+          this.state.mode === "ask"
+            ? this.state.askHistory
+            : this.state.chatHistory,
+          this.state.mode,
+          (result) => {
+            if (result && result.text) {
+              if (!this.answerTextAccumulator) {
+                this.setState({ isWaiting: false });
+              }
+              this.answerTextAccumulator += result.text;
+            }
+          }
+        );
+        this.stopUpdateInterval(this.answerTextAccumulator);
+        const finalAnswer = this.answerTextAccumulator;
+        this.answerTextAccumulator = "";
+        if (res.data && res.done) {
+          if (this.state.mode === "ask") {
+            this.setState({
+              askHistory: [
+                ...this.state.askHistory,
+                {
+                  role: "assistant",
+                  content: finalAnswer,
+                },
+              ],
+              answer: "",
+              question: "",
+              isWaiting: false,
+            });
+          } else {
+            this.setState({
+              chatHistory: [
+                ...this.state.chatHistory,
+                {
+                  role: "assistant",
+                  content: finalAnswer,
+                },
+              ],
+              answer: "",
+              question: "",
+              isWaiting: false,
+            });
+          }
+        }
+        if (ConfigService.getReaderConfig("isManualScroll") !== "yes") {
+          this.scrollToBottom();
+        }
+      }
+    } catch (error) {
+      toast.error(
+        this.props.t("Error happened") +
+          ": " +
+          (error instanceof Error ? error.message : String(error))
+      );
+      console.error(error);
+      this.setState({
+        answer: this.props.t("Error happened"),
+      });
+    }
+  };
+  handleChangeAiService = (aiService: string) => {
+    let plugin = this.props.plugins.find((item) => item.key === aiService);
+    if (!plugin) {
+      return;
+    }
+    this.setState(
+      {
+        aiService: aiService,
+        isAddNew: false,
+      },
+      () => {
+        ConfigService.setReaderConfig("aiService", aiService);
+        if (!plugin) return;
+        this.handleAnswer();
+      }
+    );
+  };
+  handleRenderHistoryMessage = (message: any[]) => {
+    return message.map((item, index) => {
+      return (
+        <div
+          key={index}
+          className={
+            item.role === "assistant"
+              ? "popup-message-assistant"
+              : "popup-message-user"
+          }
+        >
+          {Parser(
+            DOMPurify.sanitize(
+              marked.parse(item.content) + "<address></address>"
+            ) || " ",
+            {
+              replace: (_domNode) => {},
+            }
+          )}
+        </div>
+      );
+    });
+  };
+  handleExportChatHistory = () => {
+    const messages =
+      this.state.mode === "ask"
+        ? this.state.askHistory
+        : this.state.chatHistory;
+    if (messages.length === 0) {
+      toast(this.props.t("Nothing to export"));
+      return;
+    }
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const dateStr = `${year}-${month <= 9 ? "0" + month : month}-${
+      day <= 9 ? "0" + day : day
+    }`;
+    const modeLabel = this.state.mode === "ask" ? "Reading" : "Chat";
+    const bookName = this.props.currentBook?.name || "Unknown";
+    const exportData = {
+      bookName,
+      mode: this.state.mode,
+      exportedAt: now.toISOString(),
+      messages,
+    };
+    saveAs(
+      new Blob([JSON.stringify(exportData, null, 2)], {
+        type: "application/json;charset=UTF-8",
+      }),
+      `KoodoReader-${modeLabel}-Assistant-${bookName}-${dateStr}.json`
+    );
+    toast.success(this.props.t("Export successful"));
+  };
+  handleNewQuestion = (question: string) => {
+    if (this.state.mode === "ask") {
+      this.setState(
+        {
+          askHistory: [
+            ...this.state.askHistory,
+            {
+              role: "user",
+              content: this.props.t(question),
+            },
+          ],
+          question: this.props.t(question),
+          answer: "",
+          isWaiting: true,
+        },
+        () => {
+          this.handleAnswer();
+        }
+      );
+    } else {
+      this.setState(
+        {
+          chatHistory: [
+            ...this.state.chatHistory,
+            {
+              role: "user",
+              content: this.props.t(question),
+            },
+          ],
+          question: this.props.t(question),
+          answer: this.props.t(""),
+          isWaiting: true,
+        },
+        () => {
+          this.handleAnswer();
+        }
+      );
+    }
+    setTimeout(() => {
+      if (ConfigService.getReaderConfig("isManualScroll") !== "yes") {
+        this.scrollToBottom();
+      }
+    }, 100);
+  };
+  render() {
+    return (
+      <div className="dict-container">
+        <div
+          className="dict-service-container"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            width: "calc(100% - 50px)",
+            top: "20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-start",
+            }}
+          >
+            <div
+              className={
+                this.state.mode === "ask"
+                  ? "trans-service-selector"
+                  : "trans-service-selector-inactive"
+              }
+              onClick={() => {
+                this.setState({ isAddNew: false, mode: "ask" });
+              }}
+            >
+              <span className={`icon-bookmark trans-icon`}></span>
+              {this.props.t("Reading Assistant")}
+            </div>
+            <div
+              className={
+                this.state.mode === "chat"
+                  ? "trans-service-selector"
+                  : "trans-service-selector-inactive"
+              }
+              onClick={() => {
+                this.setState({ isAddNew: false, mode: "chat" });
+              }}
+            >
+              <span className={`icon-idea trans-icon`}></span>
+              {this.props.t("Chat Assistant")}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <div
+              className="popup-assist-export-button"
+              title={this.props.t("Export")}
+              onClick={this.handleExportChatHistory}
+            >
+              <span className="icon-share"></span>
+            </div>
+            <select
+              className="dict-service-selector"
+              style={{ margin: 0, color: "#f16464" }}
+              value={this.state.aiService}
+              onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
+                if (event.target.value === "add-new") {
+                  this.props.handleOpenMenu(false);
+                  this.props.handleMenuMode("");
+                  this.props.handleSetting(true);
+                  this.props.handleSettingMode("ai");
+                  return;
+                }
+                this.handleChangeAiService(event.target.value);
+              }}
+            >
+              <option
+                value={""}
+                key={"select"}
+                className="add-dialog-shelf-list-option"
+              >
+                {this.props.t("Please select")}
+              </option>
+              {this.props.plugins
+                .filter((item) => item.type === "assistant")
+                .map((item) => {
+                  return (
+                    <option
+                      value={item.key}
+                      key={item.key}
+                      className="add-dialog-shelf-list-option"
+                    >
+                      {this.props.t(item.displayName)}
+                    </option>
+                  );
+                })}
+              <option
+                value={"add-new"}
+                key={"add-new"}
+                className="add-dialog-shelf-list-option"
+              >
+                {this.props.t("Add new plugin")}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        {this.state.isAddNew && (
+          <div
+            style={{
+              marginTop: "150px",
+              textAlign: "center",
+              fontSize: "17px",
+              color: "#f16464",
+            }}
+          >
+            <span
+              style={{
+                textDecoration: "underline",
+                cursor: "pointer",
+                textAlign: "center",
+              }}
+              onClick={() => {
+                this.props.handleOpenMenu(false);
+                this.props.handleMenuMode("");
+                this.props.handleSetting(true);
+                this.props.handleSettingMode("ai");
+              }}
+            >
+              <Trans>Add new plugin</Trans>
+            </span>
+          </div>
+        )}
+        {!this.state.isAddNew && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                height: "calc(100% - 10px)",
+                marginTop: "60px",
+                paddingBottom: "20px",
+              }}
+            >
+              <div
+                className="dict-text-box"
+                style={{
+                  flex: 1,
+                  marginTop: "0px",
+                  width: "calc(100% + 20px)",
+                  height: undefined,
+                  paddingBottom: "0px",
+                  paddingLeft: "0px",
+                  paddingRight: "20px",
+                }}
+                ref={this.chatBoxRef}
+              >
+                {this.handleRenderHistoryMessage(
+                  this.state.mode === "ask"
+                    ? this.state.askHistory
+                    : this.state.chatHistory
+                )}
+                {this.state.isWaiting ? (
+                  <div
+                    className="popup-message-assistant"
+                    style={{ float: "left" }}
+                  >
+                    <span
+                      className="icon-loading popup-assistant-loading"
+                      style={{
+                        marginRight: "10px",
+                        marginTop: "5px",
+                      }}
+                    ></span>
+                    <span>{this.props.t("Thinking, please wait...")}</span>
+                  </div>
+                ) : (this.state.mode === "ask"
+                    ? this.state.askHistory
+                    : this.state.chatHistory
+                  ).length > 0 ? (
+                  <div className="popup-message-assistant">
+                    {Parser(
+                      DOMPurify.sanitize(
+                        marked.parse(
+                          this.state.answer ? this.state.answer : ""
+                        ) + "<address></address>"
+                      ) || " ",
+                      {
+                        replace: (_domNode) => {},
+                      }
+                    )}
+                  </div>
+                ) : (
+                  <div className="popup-message-assistant">
+                    {this.state.mode === "ask"
+                      ? this.props.t(
+                          "Hi there! What questions do you have about this chapter?"
+                        )
+                      : this.props.t(
+                          "Hi there! I'm happy to help with any questions about reading or learning"
+                        )}
+                  </div>
+                )}
+              </div>
+              <div
+                style={{
+                  marginLeft: "-25px",
+                  marginRight: "-25px",
+                  marginBottom: "0px",
+                  padding: "0px 25px",
+                }}
+              >
+                <div className="popup-assist-shortcut-container">
+                  {sampleQuestion
+                    .filter((item) => item.mode === this.state.mode)
+                    .map((item) => {
+                      return (
+                        <div
+                          className="popup-assist-shortcut"
+                          onClick={() => {
+                            this.handleNewQuestion(item.question);
+                          }}
+                        >
+                          {item.emoji + " " + this.props.t(item.question)}
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-end",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <textarea
+                    ref={this.textareaRef}
+                    name="url"
+                    placeholder={this.props.t(
+                      this.state.mode === "ask"
+                        ? "Ask anything about this chapter"
+                        : "Ask anything about reading or learning"
+                    )}
+                    id="trans-add-content-box"
+                    className="trans-add-content-box"
+                    style={{
+                      height: "40px",
+                      resize: "none",
+                      overflowY: "hidden",
+                      marginRight: "10px",
+                      marginBottom: "0px",
+                    }}
+                    onContextMenu={() => {
+                      handleContextMenu("trans-add-content-box");
+                    }}
+                    value={this.state.inputQuestion}
+                    onChange={(
+                      event: React.ChangeEvent<HTMLTextAreaElement>
+                    ) => {
+                      this.setState(
+                        { inputQuestion: event.target.value },
+                        () => {
+                          this.autoResizeTextarea();
+                        }
+                      );
+                    }}
+                  />
+                  <div
+                    className="popup-assistant-send-button"
+                    onClick={() => {
+                      if (this.state.answer || this.state.isWaiting) {
+                        return;
+                      }
+                      this.handleNewQuestion(this.state.inputQuestion);
+                      this.setState({ inputQuestion: "" }, () => {
+                        const el = this.textareaRef.current;
+                        if (el) {
+                          el.style.height = "40px";
+                          el.style.overflowY = "hidden";
+                        }
+                      });
+                    }}
+                  >
+                    {this.props.t("Send")}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+}
+export default PopupAssist;

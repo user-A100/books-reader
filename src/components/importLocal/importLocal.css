@@ -1,0 +1,98 @@
+.import-from-local {
+  position: fixed;
+  right: 0px;
+  top: 0px;
+  width: 138px;
+  margin-right: 25px;
+  margin-top: 23px;
+  min-width: 42px;
+  height: 42px;
+  opacity: 1;
+  border-radius: 25px;
+  line-height: 42px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 5;
+  font-size: 15px;
+  transition: 0.1s;
+  font-weight: 500;
+}
+
+.import-book-box {
+  position: relative;
+  bottom: 42px;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  z-index: 10;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+.drag-section {
+  position: absolute;
+  top: 75px;
+  width: calc(100% - 200px);
+  height: calc(100vh - 90px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+.more-import-option {
+  position: absolute;
+  width: 30px;
+  right: 0px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  z-index: 11;
+  background-color: rgba(0, 0, 0, 0.1); /* Semi-transparent white overlay */
+  border-radius: 0 30px 30px 0;
+}
+
+.icon-more {
+  font-size: 20px;
+}
+
+.more-options-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  border-radius: 10px;
+  width: 200px;
+  z-index: 999;
+  margin-top: 5px;
+  overflow: hidden;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.more-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 20px;
+  transition: 0.2s;
+  line-height: 1;
+  height: 40px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.more-option-item .icon-cloud {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.dropdown-triangle {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 2px;
+  margin-bottom: 5px;
+  vertical-align: middle;
+  border-top: 6px solid currentColor;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+}

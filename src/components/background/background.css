@@ -1,0 +1,70 @@
+.background-box1 {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 5px;
+  bottom: 5px;
+  z-index: 0;
+}
+.background-box2 {
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  top: 5px;
+  bottom: 5px;
+  z-index: 1;
+}
+.background-box3 {
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  top: 5px;
+  bottom: 5px;
+  z-index: 2;
+  /* display: flex;
+  justify-content: space-between;
+  place-content: center; */
+  overflow: hidden;
+}
+
+.book-spine {
+  position: absolute;
+  width: 1px;
+  height: 100%;
+  position: absolute;
+  left: 50%;
+  /* bottom: 100%; */
+  bottom: 0;
+  /* border: 2px solid rgba(191, 191, 191, 1); */
+  border-left: none;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.spine-shadow-left {
+  width: 68px;
+  height: 100%;
+  background: url("../../assets/images/dark-gradient-left.png") repeat-y;
+  z-index: 10;
+  margin: 0;
+  z-index: 10;
+  position: absolute;
+  left: calc(50% - 68px);
+  opacity: 0.125;
+}
+
+.spine-shadow-right {
+  width: 68px;
+  height: 100%;
+  background: url("../../assets/images/dark-gradient-right.png") repeat-y;
+  z-index: 10;
+  margin: 0;
+  box-sizing: border-box;
+  position: absolute;
+  right: calc(50% - 68px);
+  opacity: 0.125;
+}
+.single-background {
+  width: 60vw;
+  left: 20vw;
+}

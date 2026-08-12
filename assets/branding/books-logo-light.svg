@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 180" role="img" aria-labelledby="title">
+  <title id="title">Books</title>
+  <g transform="translate(8 12) scale(.3)">
+    <rect x="16" y="16" width="480" height="480" rx="92" fill="#FAF9F4"/>
+    <g fill="#FAF9F4" stroke="#4A4947" stroke-width="28" stroke-linejoin="round">
+      <path d="M94 395h324v49H94z" fill="#4A4947" stroke="none"/>
+      <path d="M119 153h79v241h-79z"/><path d="M214 98h80v296h-80z"/>
+      <g transform="rotate(-24 351 259)"><path d="M312 134h78v260h-78z"/></g>
+    </g>
+  </g>
+  <text x="182" y="117" fill="#3F403E" font-family="Aptos, 'Segoe UI', sans-serif" font-size="78" font-weight="650" letter-spacing="-3">Books</text>
+</svg>

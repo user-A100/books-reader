@@ -1,0 +1,23 @@
+.single-control-container {
+  width: 100%;
+  height: 60px;
+  display: flex;
+  justify-content: space-around;
+}
+.single-page-icon,
+.two-page-icon {
+  font-size: 60px;
+  text-align: center;
+}
+.single-mode-text,
+.double-mode-text {
+  font-size: 14px;
+  line-height: 27px;
+  opacity: 1;
+  text-align: center;
+}
+.single-mode-container,
+.double-mode-container {
+  cursor: pointer;
+  text-align: center;
+}

@@ -1,0 +1,45 @@
+{
+  "id": "my-book-source",
+  "schemaVersion": 1,
+  "name": "My book source",
+  "baseUrl": "https://example.com",
+  "allowedHosts": ["example.com"],
+  "description": "Replace the example selectors with a site you may access.",
+  "enabled": true,
+  "search": {
+    "request": {
+      "url": "/search?q={{keyword}}",
+      "method": "GET"
+    },
+    "list": ".book-item",
+    "fields": {
+      "title": ".title@text",
+      "author": ".author@text",
+      "cover": "img@src",
+      "detailUrl": "a@href"
+    }
+  },
+  "detail": {
+    "fields": {
+      "title": "h1@text",
+      "author": ".author@text",
+      "cover": ".cover img@src",
+      "description": ".intro@text",
+      "tocUrl": ".catalog@href"
+    }
+  },
+  "toc": {
+    "list": ".chapter-list a",
+    "fields": {
+      "title": "@text",
+      "url": "@href"
+    }
+  },
+  "content": {
+    "body": "#chapter-content",
+    "remove": [
+      "script",
+      ".advertisement"
+    ]
+  }
+}

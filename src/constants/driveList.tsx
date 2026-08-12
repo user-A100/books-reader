@@ -1,0 +1,436 @@
+export const driveList = [
+  {
+    label: "WebDAV",
+    value: "webdav",
+    icon: "icon-webdav",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: false,
+    needExtension: true,
+  },
+  {
+    label: "S3 Compatible",
+    value: "s3compatible",
+    icon: "icon-s3compatible",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: false,
+    needExtension: true,
+  },
+  {
+    label: "Docker",
+    value: "docker",
+    icon: "icon-docker",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: true,
+  },
+  {
+    label: "OneDrive",
+    value: "microsoft",
+    icon: "icon-onedrive",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: true,
+  },
+  {
+    label: "Google Drive",
+    value: "google",
+    icon: "icon-googledrive",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: false,
+  },
+  {
+    label: "Dropbox",
+    value: "dropbox",
+    icon: "icon-dropbox",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: true,
+  },
+  {
+    label: "iCloud",
+    value: "icloud",
+    icon: "icon-icloud",
+    isPro: true,
+    support: ["desktop", "phone"],
+    scoped: true,
+  },
+  {
+    label: "Local folder",
+    value: "folder",
+    icon: "icon-local",
+    isPro: true,
+    support: ["desktop"],
+    scoped: true,
+  },
+  {
+    label: "Dubox",
+    value: "dubox",
+    icon: "icon-dubox",
+    isPro: true,
+    support: ["desktop", "phone"],
+    scoped: false,
+  },
+
+  {
+    label: "Box",
+    value: "boxnet",
+    icon: "icon-box",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: false,
+  },
+
+  {
+    label: "MEGA",
+    value: "mega",
+    icon: "icon-mega",
+    isPro: true,
+    support: ["desktop", "browser"],
+    scoped: false,
+  },
+  {
+    label: "Aliyun Drive",
+    value: "adrive",
+    icon: "icon-adrive",
+    isPro: true,
+    support: ["desktop", "phone"],
+    scoped: false,
+  },
+  {
+    label: "Yandex Disk",
+    value: "yandex",
+    icon: "icon-yandex",
+    isPro: true,
+    support: ["desktop", "phone"],
+    scoped: false,
+  },
+  {
+    label: "115 Yun",
+    value: "yiyiwu",
+    icon: "icon-yiyiwu",
+    isPro: true,
+    support: ["desktop", "phone"],
+    scoped: false,
+  },
+
+  {
+    label: "pCloud",
+    value: "pcloud",
+    icon: "icon-pcloud",
+    isPro: true,
+    support: ["desktop", "phone"],
+    scoped: true,
+  },
+
+  {
+    label: "OneDrive (full access)",
+    value: "microsoft_exp",
+    icon: "icon-onedrive",
+    isPro: true,
+    support: ["desktop", "browser", "phone"],
+    scoped: false,
+  },
+
+  {
+    label: "FTP",
+    value: "ftp",
+    icon: "icon-ftp",
+    isPro: true,
+    support: ["desktop"],
+    scoped: false,
+  },
+  {
+    label: "SFTP",
+    value: "sftp",
+    icon: "icon-sftp",
+    isPro: true,
+    support: ["desktop"],
+    scoped: false,
+  },
+];
+interface ConfigItem {
+  label: string;
+  value: string;
+  type: string;
+  required?: boolean;
+  example?: string;
+  note?: string;
+}
+
+// Type the driveInputConfig
+interface DriveInputConfig {
+  [key: string]: ConfigItem[];
+}
+export const driveInputConfig: DriveInputConfig = {
+  webdav: [
+    {
+      label: "Server address",
+      value: "url",
+      type: "text",
+      required: true,
+      example: "https://example.com/dav",
+    },
+    {
+      label: "Server path (Please first create this folder manually)",
+      value: "dir",
+      type: "text",
+      required: true,
+      example: "KoodoReader",
+    },
+    {
+      label: "Username",
+      value: "username",
+      type: "text",
+      required: true,
+    },
+    {
+      label: "Password",
+      value: "password",
+      type: "password",
+      required: true,
+    },
+  ],
+  docker: [
+    {
+      label: "Server address",
+      value: "url",
+      type: "text",
+      required: true,
+      example: "http://192.168.28.14:8080",
+    },
+    {
+      label: "Username",
+      value: "username",
+      type: "text",
+      required: true,
+    },
+    {
+      label: "Password",
+      value: "password",
+      type: "password",
+      required: true,
+    },
+  ],
+  mega: [
+    {
+      label: "Email",
+      value: "email",
+      type: "text",
+      required: true,
+    },
+    {
+      label: "Password",
+      value: "password",
+      type: "password",
+      required: true,
+    },
+  ],
+  boxnet: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  ftp: [
+    {
+      label: "Server address",
+      value: "url",
+      type: "text",
+      required: true,
+      example: "192.168.28.173",
+    },
+    {
+      label: "Server port",
+      value: "port",
+      type: "text",
+      required: true,
+      example: "21",
+    },
+    {
+      label: "Server path",
+      value: "dir",
+      type: "text",
+      required: false,
+      example: "KoodoReader",
+    },
+    {
+      label: "Username",
+      value: "username",
+      type: "text",
+      required: true,
+    },
+    {
+      label: "Password",
+      value: "password",
+      type: "password",
+      required: true,
+    },
+    {
+      label: "Use SSL, 1 for use, 0 for not use",
+      value: "ssl",
+      type: "text",
+      required: true,
+    },
+  ],
+  sftp: [
+    {
+      label: "Server address",
+      value: "url",
+      type: "text",
+      required: true,
+      example: "192.168.28.173",
+    },
+    {
+      label: "Server port",
+      value: "port",
+      type: "text",
+      required: true,
+      example: "22",
+    },
+    {
+      label: "Server Path",
+      value: "dir",
+      type: "text",
+      required: false,
+      example: "KoodoReader",
+    },
+    {
+      label: "Username",
+      value: "username",
+      type: "text",
+      required: true,
+    },
+    {
+      label: "Password",
+      value: "password",
+      type: "password",
+      required: true,
+    },
+  ],
+  s3compatible: [
+    {
+      label: "Endpoint",
+      value: "endpoint",
+      type: "text",
+      required: true,
+      example: "https://endpoint.example.com",
+    },
+    {
+      label: "Region",
+      value: "region",
+      type: "text",
+      required: true,
+      example: "ap-west-1",
+    },
+    {
+      label: "BucketName",
+      value: "bucketName",
+      type: "text",
+      required: true,
+      example: "koodo-reader-bucket",
+    },
+    {
+      label: "Path",
+      value: "dir",
+      type: "text",
+      required: false,
+      example: "KoodoReader",
+    },
+    {
+      label: "AccessKeyId",
+      value: "accessKeyId",
+      type: "password",
+      required: true,
+    },
+    {
+      label: "SecretAccessKey",
+      value: "secretAccessKey",
+      type: "password",
+      required: true,
+    },
+    {
+      label: "Force path style",
+      value: "forcePathStyle",
+      type: "text",
+      required: false,
+      note: "Enter 1 to enable, leave empty to disable. Required for some S3 storage services that are not compatible with virtual host style URL",
+    },
+  ],
+  google: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  microsoft: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  microsoft_exp: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  dropbox: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  yandex: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  dubox: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  yiyiwu: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  pcloud: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+  adrive: [
+    {
+      label: "Token",
+      value: "token",
+      type: "text",
+      required: true,
+    },
+  ],
+};

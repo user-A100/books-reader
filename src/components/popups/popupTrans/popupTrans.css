@@ -1,0 +1,226 @@
+.trans-container {
+  width: calc(100% - 40px);
+  height: calc(100% - 50px);
+  padding: 20px;
+  margin-top: 50px;
+}
+.trans-box {
+  height: calc(100% - 40px);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 7px;
+}
+.original-text,
+.trans-text {
+  overflow-y: scroll;
+  height: calc(100% - 40px);
+  margin: 5px;
+  margin-top: 35px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.original-text-box,
+.trans-text-box {
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  user-select: text;
+
+  padding: 5px;
+  box-sizing: border-box;
+  font-size: 15px;
+  line-height: 18px;
+  /* position: relative; */
+}
+.trans-lang-selector-container {
+  width: calc(100% - 40px);
+  height: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  position: absolute;
+  top: 67px;
+}
+.trans-lang-box,
+.original-lang-box {
+  width: calc(50%);
+  height: 100%;
+  padding-left: 7px;
+  box-sizing: border-box;
+}
+.original-text-box {
+  /* margin-right: 10px; */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-right: none;
+  border-bottom-left-radius: 7px;
+  border-top-left-radius: 7px;
+}
+.trans-text-box {
+  background-color: rgba(75, 75, 75, 0.05);
+  border-bottom-right-radius: 7px;
+  border-top-right-radius: 7px;
+}
+.trans-lang-selector,
+.original-lang-selector {
+  height: 30px;
+  opacity: 1;
+  box-sizing: border-box;
+  font-size: 15px;
+  line-height: 30px;
+  cursor: pointer;
+  border: none;
+  background-color: transparent;
+}
+.trans-lang-selector {
+  font-size: 15px;
+  line-height: 15px;
+}
+.trans-service-selector {
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: #f16464;
+  background-color: rgba(241, 100, 100, 0.05);
+  height: 34px;
+  display: inline-block; /* 修改：从 float: left 改为 inline-block */
+  vertical-align: top; /* 添加：对齐方式 */
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 8px;
+  margin-right: 10px;
+  text-align: center;
+  line-height: 34px;
+  cursor: pointer;
+  opacity: 1;
+}
+.trans-icon,
+.trans-google-icon,
+.trans-bing-icon {
+  font-size: 13px;
+  margin: 2px;
+  margin-right: 5px;
+}
+.trans-bing-icon {
+  font-size: 14px;
+}
+.trans-service-selector-inactive {
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: #f16464;
+  display: inline-block; /* 修改：从 float: left 改为 inline-block */
+  vertical-align: top; /* 添加：对齐方式 */
+  height: 34px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 8px;
+  margin-right: 10px;
+  text-align: center;
+  line-height: 34px;
+  cursor: pointer;
+}
+.trans-service-selector-container {
+  position: absolute;
+  top: 20px;
+  width: 90%;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  white-space: nowrap; /* 添加：防止换行 */
+  height: 42px; /* 添加：给容器一个固定高度 */
+}
+/* 滚动条样式 - 仅在悬停时显示 */
+.trans-service-selector-container::-webkit-scrollbar {
+  height: 4px; /* 滚动条高度 */
+}
+
+.trans-service-selector-container::-webkit-scrollbar-track {
+  background: transparent; /* 轨道背景透明 */
+}
+
+.trans-service-selector-container::-webkit-scrollbar-thumb {
+  background: transparent; /* 默认透明 */
+  border-radius: 2px;
+  transition: background 0.3s ease;
+}
+
+.trans-service-selector-container:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2); /* 悬停时显示 */
+}
+
+.trans-service-selector-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4); /* 滚动条本身悬停时加深 */
+}
+.trans-button-container {
+  position: absolute;
+  bottom: 8px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+.trans-text-box {
+  left: 16px;
+  top: 16px;
+}
+.target-lang-container {
+  position: absolute;
+  width: calc(100% - 32px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  bottom: 16px;
+  left: 16px;
+}
+.trans-add-icon {
+  font-size: 13px;
+  margin: 5px;
+}
+.trans-add-content-box {
+  width: 100%;
+  opacity: 1;
+  font-size: 15px;
+  line-height: 18px;
+  padding: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  opacity: 1;
+  background-color: rgba(75, 75, 75, 0.05);
+  border-radius: 7px;
+  border: none;
+}
+.trans-add-content-box::placeholder {
+  font-weight: bold;
+}
+.trans-add-cancel {
+  min-width: 60px;
+  height: 30px;
+  opacity: 1;
+  padding-left: 5px;
+  padding-right: 5px;
+  font-size: 13px;
+  line-height: 30px;
+  opacity: 1;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.trans-add-confirm {
+  min-width: 64px;
+  height: 30px;
+  opacity: 1;
+  padding-left: 5px;
+  padding-right: 5px;
+  font-size: 13px;
+  line-height: 30px;
+  opacity: 1;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 5px;
+  float: right;
+  background-color: #f16464;
+  color: white;
+  margin-left: 5px;
+}
+.trans-add-button-container {
+  display: flex;
+  justify-content: flex-end;
+}

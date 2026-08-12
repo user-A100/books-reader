@@ -1,0 +1,680 @@
+import React from "react";
+import { ViewerProps, ViewerState } from "./interface";
+import { withRouter } from "react-router-dom";
+import BookUtil from "../../utils/file/bookUtil";
+import PopupMenu from "../../components/popups/popupMenu";
+import Background from "../../components/background";
+import StyleUtil from "../../utils/reader/styleUtil";
+import "./index.css";
+import { htmlMouseEvent } from "../../utils/reader/mouseEvent";
+import ImageViewer from "../../components/imageViewer";
+import { getIframeDoc } from "../../utils/reader/docUtil";
+import PopupBox from "../../components/popups/popupBox";
+import Note from "../../models/Note";
+import PageWidget from "../pageWidget";
+import {
+  BRUSH_WIDTHS,
+  getDefaultOcrEngine,
+  getDefaultOcrLang,
+  getPageWidth,
+  getParserRegex,
+  getPdfPassword,
+  getServerRegion,
+  getTextRules,
+  throttle,
+} from "../../utils/common";
+import _ from "underscore";
+import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import * as Kookit from "../../assets/lib/kookit.min";
+import PopupRefer from "../../components/popups/popupRefer";
+import DatabaseService from "../../utils/storage/databaseService";
+import { getOcrResult, getOcrResultV2 } from "../../utils/request/reader";
+import { BookHelper } from "../../assets/lib/kookit.min";
+import { parseWithSystemOCR } from "../../utils/request/common";
+declare var window: any;
+let lock = false; //prevent from clicking too fasts
+
+class Viewer extends React.Component<ViewerProps, ViewerState> {
+  private resizeHandler: (() => void) | null = null;
+  private _pendingRerender = false;
+  lock: boolean;
+  constructor(props: ViewerProps) {
+    super(props);
+    this.state = {
+      cfiRange: null,
+      contents: null,
+      rect: null,
+      key: "",
+      isFirst: true,
+      chapterTitle:
+        ConfigService.getObjectConfig(
+          this.props.currentBook.key,
+          "recordLocation",
+          {}
+        ).chapterTitle || "",
+      isDisablePopup: ConfigService.getReaderConfig("isDisablePopup") === "yes",
+      isTouch: ConfigService.getReaderConfig("isTouch") === "yes",
+      chapterDocIndex: parseInt(
+        ConfigService.getObjectConfig(
+          this.props.currentBook.key,
+          "recordLocation",
+          {}
+        ).chapterDocIndex || 0
+      ),
+      pageOffset: "",
+      pageWidth: "",
+      chapter: "",
+      rendition: null,
+    };
+    this.lock = false;
+  }
+  UNSAFE_componentWillMount() {
+    this.props.handleFetchBookmarks();
+    this.props.handleFetchNotes();
+    this.props.handleFetchBooks();
+    this.props.handleFetchPlugins();
+  }
+  componentDidMount() {
+    this.handleRenderBook();
+    //make sure page width is always 12 times, section = Math.floor(element.clientWidth / 12), or text will be blocked
+    this.setState(
+      getPageWidth(
+        this.props.readerMode,
+        this.props.scale,
+        parseInt(this.props.margin),
+        this.props.isNavLocked,
+        this.props.isSettingLocked
+      )
+    );
+    this.props.handleRenderBookFunc(this.handleRenderBook);
+    this.resizeHandler = throttle(() => {
+      this.setState(
+        getPageWidth(
+          this.props.readerMode,
+          this.props.scale,
+          parseInt(this.props.margin),
+          this.props.isNavLocked,
+          this.props.isSettingLocked
+        )
+      );
+      if (lock) {
+        this._pendingRerender = true;
+      } else {
+        this.handleRenderBook();
+      }
+    });
+    window.addEventListener("resize", this.resizeHandler);
+  }
+  componentWillUnmount() {
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+      this.resizeHandler = null;
+    }
+  }
+  async UNSAFE_componentWillReceiveProps(nextProps: ViewerProps) {
+    if (
+      nextProps.margin !== this.props.margin ||
+      nextProps.scale !== this.props.scale ||
+      nextProps.readerMode !== this.props.readerMode ||
+      nextProps.isNavLocked !== this.props.isNavLocked ||
+      nextProps.isSettingLocked !== this.props.isSettingLocked
+    ) {
+      this.setState(
+        getPageWidth(
+          nextProps.readerMode,
+          nextProps.scale,
+          parseInt(nextProps.margin),
+          nextProps.isNavLocked,
+          nextProps.isSettingLocked
+        )
+      );
+    }
+  }
+  handleHighlight = async (rendition: any) => {
+    if (!rendition) return;
+    let highlighters: any = await DatabaseService.getRecordsByBookKey(
+      this.props.currentBook.key,
+      "notes"
+    );
+    if (!highlighters) return;
+    let highlightersByChapter = highlighters.filter((item: Note) => {
+      let cfi = JSON.parse(item.cfi);
+      if (cfi.cfi) {
+        // epub from 1.5.2 or older
+        return (
+          item.chapter ===
+          rendition.getChapterDoc()[this.state.chapterDocIndex].label
+        );
+      } else if (cfi.fingerprint) {
+        // pdf from 1.7.4 or older
+        return cfi.page - 1 === this.state.chapterDocIndex;
+      } else {
+        return item.chapterIndex === this.state.chapterDocIndex;
+      }
+    });
+    if (this.props.currentBook.format === "PDF") {
+      highlightersByChapter = highlightersByChapter.map((item: Note) => {
+        let cfi = JSON.parse(item.cfi);
+        if (cfi.fingerprint) {
+          item.chapterIndex = cfi.page - 1;
+          cfi.chapterDocIndex = cfi.page - 1 + "";
+          cfi.chapterHref = "title" + (cfi.page - 1);
+          item.cfi = JSON.stringify(cfi);
+        }
+
+        return item;
+      });
+    }
+    await rendition.renderHighlighters(
+      highlightersByChapter,
+      this.handleNoteClick
+    );
+    if (
+      this.props.currentBook.format === "PDF" &&
+      (this.props.readerMode === "double" ||
+        this.props.readerMode === "scroll") &&
+      !ConfigService.getAllListConfig("convertPDFBooks").includes(
+        this.props.currentBook.key
+      )
+    ) {
+      let highlightersByChapter = highlighters.filter((item: Note) => {
+        let cfi = JSON.parse(item.cfi);
+        if (cfi.fingerprint) {
+          // pdf from 1.7.4 or older
+          return cfi.page === this.state.chapterDocIndex;
+        } else {
+          return item.chapterIndex === this.state.chapterDocIndex + 1;
+        }
+      });
+      if (this.props.currentBook.format === "PDF") {
+        highlightersByChapter = highlightersByChapter.map((item: Note) => {
+          let cfi = JSON.parse(item.cfi);
+          if (cfi.fingerprint) {
+            item.chapterIndex = cfi.page - 1;
+            cfi.chapterDocIndex = cfi.page - 1 + "";
+            cfi.chapterHref = "title" + (cfi.page - 1);
+            item.cfi = JSON.stringify(cfi);
+          }
+
+          return item;
+        });
+      }
+      await rendition.renderHighlighters(
+        highlightersByChapter,
+        this.handleNoteClick
+      );
+    }
+  };
+  handleNoteClick = (event: Event) => {
+    this.props.handleNoteKey((event.target as any).dataset.key);
+    this.props.handleMenuMode("note");
+    this.props.handleOpenMenu(true);
+  };
+  handleRenderBook = async () => {
+    if (lock) return;
+    let { key, path, format, name } = this.props.currentBook;
+    if (ConfigService.getAllListConfig("seperateStyleBooks").includes(key)) {
+      window.currentBookKey = key;
+      this.props.handleBackgroundColor(
+        ConfigService.getReaderConfig("backgroundColor") || ""
+      );
+    } else {
+      window.currentBookKey = "";
+    }
+    this.props.handleHtmlBook(null);
+    if (this.state.rendition) {
+      this.state.rendition.removeContent();
+    }
+    let isCacheExsit = await BookUtil.isBookExist("cache-" + key, "zip", path);
+    BookUtil.fetchBook(
+      isCacheExsit ? "cache-" + key : key,
+      isCacheExsit ? "zip" : format.toLowerCase(),
+      true,
+      path
+    ).then(async (result: any) => {
+      const crop = ConfigService.getObjectConfig(
+        this.props.currentBook.key,
+        "pdfCrop",
+        null
+      );
+      let pdfCrop;
+      if (crop) {
+        const top = Number(crop.top) || 0;
+        const bottom = Number(crop.bottom) || 0;
+        const left = Number(crop.left) || 0;
+        const right = Number(crop.right) || 0;
+        if (top !== 0 || bottom !== 0 || left !== 0 || right !== 0) {
+          pdfCrop = { top, bottom, left, right };
+        }
+      }
+      const ocrLangKey =
+        this.props.currentBook.description.indexOf("scanned") > -1
+          ? "scannedOcrLang"
+          : "textOcrLang";
+      let rendition = BookHelper.getRendition(
+        result,
+        {
+          format: isCacheExsit ? "CACHE" : format,
+          readerMode: this.props.readerMode,
+          charset: this.props.currentBook.charset,
+          animation: ConfigService.getReaderConfig("animation") || "none",
+          convertChinese: ConfigService.getReaderConfig("convertChinese"),
+          bookLayout: ConfigService.getReaderConfig("bookLayout") || "",
+          textRules: getTextRules(this.props.currentBook.key),
+          codeHighlight: ConfigService.getReaderConfig("codeHighlight") || "",
+          parserRegex: getParserRegex(
+            this.props.currentBook.format,
+            this.props.currentBook.key
+          ),
+          fullTranslationMode:
+            ConfigService.getAllListConfig("fullTranslationBooks").includes(
+              this.props.currentBook.key
+            ) && this.props.isAuthed
+              ? ConfigService.getReaderConfig("fullTranslationMode")
+              : "no",
+          textOrientation: ConfigService.getReaderConfig("textOrientation"),
+          isDarkMode:
+            ConfigService.getReaderConfig("backgroundColor") ===
+            "rgba(44,47,49,1)"
+              ? "yes"
+              : "no",
+          backgroundColor: ConfigService.getReaderConfig("backgroundColor"),
+          isMobile: "no",
+          isIndent: ConfigService.getReaderConfig("isIndent"),
+          isHyphenation: ConfigService.getReaderConfig("isHyphenation"),
+          isStartFromEven: ConfigService.getReaderConfig("isStartFromEven"),
+          isAllowScript: ConfigService.getReaderConfig("isAllowScript"),
+          isBionic: ConfigService.getReaderConfig("isBionic"),
+          password: getPdfPassword(this.props.currentBook),
+          pdfCrop,
+          scale: parseFloat(this.props.scale),
+          isConvertPDF: ConfigService.getAllListConfig(
+            "convertPDFBooks"
+          ).includes(this.props.currentBook.key)
+            ? "yes"
+            : "no",
+          ocrLang: getDefaultOcrLang(
+            getDefaultOcrEngine(this.props.currentBook),
+            this.props.currentBook
+          ),
+          externalWorker: {
+            recognize:
+              getDefaultOcrEngine(this.props.currentBook) === "system-ocr"
+                ? parseWithSystemOCR
+                : ConfigService.getReaderConfig(ocrLangKey) === "accurate"
+                  ? getOcrResultV2
+                  : getOcrResult,
+          },
+          ocrEngine: getDefaultOcrEngine(this.props.currentBook),
+          serverRegion:
+            getServerRegion() === "china" && this.props.isAuthed
+              ? "china"
+              : "global",
+          paraSpacingValue:
+            ConfigService.getReaderConfig("paraSpacingValue") || "1.5",
+          titleSizeValue:
+            ConfigService.getReaderConfig("titleSizeValue") || "1.2",
+          isScannedPDF:
+            this.props.currentBook.description.indexOf("scanned") > -1
+              ? "yes"
+              : "no",
+          brushColor: ConfigService.getReaderConfig("brushColor") || "#FF0000",
+          brushWidth: parseFloat(
+            ConfigService.getReaderConfig("brushWidth") || BRUSH_WIDTHS[1] + ""
+          ),
+          isKeepPDFBackground: ConfigService.getReaderConfig(
+            "isKeepPDFBackground"
+          ),
+        },
+        Kookit
+      );
+      if (this.props.currentBook.format === "TXT") {
+        let bookLocation = ConfigService.getObjectConfig(
+          this.props.currentBook.key,
+          "recordLocation",
+          {}
+        );
+        await rendition.renderTo(
+          document.getElementById("page-area"),
+          bookLocation
+        );
+      } else {
+        await rendition.renderTo(document.getElementById("page-area"));
+      }
+
+      await this.handleRest(rendition);
+      this.props.handleReadingState(true);
+
+      ConfigService.setListConfig(this.props.currentBook.key, "recentBooks");
+      document.title = name + " - Books";
+    });
+  };
+
+  handleRest = async (rendition: any) => {
+    htmlMouseEvent(
+      rendition,
+      this.props.currentBook.key,
+      this.props.readerMode,
+      this.props.currentBook.format,
+      this.props.handleScale,
+      this.props.renderBookFunc
+    );
+    let chapters = rendition.getChapter();
+    let chapterDocs = rendition.getChapterDoc();
+    let flattenChapters = rendition.flatChapter(chapters);
+    this.props.handleHtmlBook({
+      key: this.props.currentBook.key,
+      chapters,
+      flattenChapters,
+      rendition: rendition,
+    });
+    this.setState({ rendition });
+    if (
+      this.props.currentBook.format === "PDF" &&
+      !ConfigService.getAllListConfig("convertPDFBooks").includes(
+        this.props.currentBook.key
+      )
+    ) {
+      //ignore
+    } else {
+      StyleUtil.addDefaultCss(this.props.currentBook.key);
+      await StyleUtil.applyReaderFonts(rendition);
+    }
+
+    let bookLocation: {
+      text: string;
+      count: string;
+      chapterTitle: string;
+      chapterDocIndex: string;
+      chapterHref: string;
+      percentage: string;
+      cfi: string;
+      page: string;
+      xpath: string;
+    } = ConfigService.getObjectConfig(
+      this.props.currentBook.key,
+      "recordLocation",
+      {}
+    );
+    if (chapterDocs.length > 0) {
+      if (
+        ConfigService.getReaderConfig("isEnableKoReaderSync") === "yes" &&
+        bookLocation.xpath
+      ) {
+        await rendition.goToXpath(bookLocation.xpath);
+      } else {
+        await rendition.goToPosition(
+          JSON.stringify({
+            text: bookLocation.text || "",
+            chapterTitle: bookLocation.chapterTitle || "",
+            page: bookLocation.page || "",
+            chapterDocIndex: bookLocation.chapterDocIndex || 0,
+            chapterHref: bookLocation.chapterHref || "",
+            count: bookLocation.hasOwnProperty("cfi")
+              ? "ignore"
+              : bookLocation.count || 0,
+            percentage: bookLocation.percentage,
+            cfi: bookLocation.cfi,
+            isFirst: true,
+          })
+        );
+      }
+    }
+    rendition.on("rendered", async () => {
+      this.handleLocation();
+      let bookLocation: {
+        text: string;
+        count: string;
+        chapterTitle: string;
+        chapterDocIndex: string;
+        chapterHref: string;
+      } = ConfigService.getObjectConfig(
+        this.props.currentBook.key,
+        "recordLocation",
+        {}
+      );
+
+      let chapter =
+        bookLocation.chapterTitle ||
+        (this.props.htmlBook && this.props.htmlBook.flattenChapters[0]
+          ? ""
+          : "Unknown chapter");
+      let chapterDocIndex = 0;
+      if (bookLocation.chapterDocIndex) {
+        chapterDocIndex = parseInt(bookLocation.chapterDocIndex);
+      } else {
+        chapterDocIndex =
+          bookLocation.chapterTitle && this.props.htmlBook
+            ? _.findLastIndex(
+                this.props.htmlBook.flattenChapters.map((item) => {
+                  item.label = item.label.trim();
+                  return item;
+                }),
+                {
+                  label: bookLocation.chapterTitle.trim(),
+                }
+              )
+            : 0;
+      }
+      this.props.handleCurrentChapter(chapter);
+      this.props.handleCurrentChapterIndex(chapterDocIndex);
+
+      this.setState({
+        chapter,
+        chapterDocIndex,
+      });
+      if (
+        this.props.currentBook.format === "PDF" &&
+        !ConfigService.getAllListConfig("convertPDFBooks").includes(
+          this.props.currentBook.key
+        )
+      ) {
+        //ignore
+      } else {
+        StyleUtil.addDefaultCss(this.props.currentBook.key);
+        await StyleUtil.applyReaderFonts(rendition);
+      }
+      // rendition.tranformText();
+      this.handleBindGesture();
+      await this.handleHighlight(rendition);
+      lock = true;
+      setTimeout(() => {
+        lock = false;
+        if (this._pendingRerender) {
+          this._pendingRerender = false;
+          this.handleRenderBook();
+        }
+      }, 1000);
+      return false;
+    });
+    if (
+      this.props.currentBook.format === "TXT" &&
+      rendition.format !== "CACHE"
+    ) {
+      if (
+        flattenChapters.length > 0 &&
+        flattenChapters[0].label === "Chapter 0"
+      ) {
+        return;
+      }
+      setTimeout(async () => {
+        await rendition.refreshContent();
+        let chapters = rendition.getChapter();
+        let flattenChapters = rendition.flatChapter(chapters);
+        this.props.handleHtmlBook({
+          key: this.props.currentBook.key,
+          chapters,
+          flattenChapters,
+          rendition: rendition,
+        });
+      }, 1000);
+    }
+  };
+
+  handleLocation = () => {
+    if (!this.props.htmlBook) {
+      return;
+    }
+    let position = this.props.htmlBook.rendition.getPosition();
+    ConfigService.setObjectConfig(
+      this.props.currentBook.key,
+      position,
+      "recordLocation"
+    );
+  };
+  handleBindGesture = () => {
+    let docs = getIframeDoc(
+      this.props.currentBook.format,
+      this.props.currentBook.key
+    );
+    for (let i = 0; i < docs.length; i++) {
+      let doc = docs[i];
+      if (!doc) continue;
+      doc.addEventListener("click", () => {
+        this.props.handleLeaveReader("left");
+        this.props.handleLeaveReader("right");
+        this.props.handleLeaveReader("top");
+        this.props.handleLeaveReader("bottom");
+      });
+      doc.addEventListener("pointerup", (event) => {
+        if (
+          this.props.currentBook.format === "PDF" &&
+          !ConfigService.getAllListConfig("convertPDFBooks").includes(
+            this.props.currentBook.key
+          )
+        ) {
+          let ownerDoc = (event.target as HTMLElement).ownerDocument;
+          let targetIframe = ownerDoc?.defaultView?.frameElement;
+          let id = targetIframe?.getAttribute("id") || "";
+          let chapterDocIndex = id ? parseInt(id.split("-").reverse()[0]) : 0;
+          this.setState({ chapterDocIndex });
+        }
+
+        if (this.state.isDisablePopup) {
+          if (doc!.getSelection()!.toString().trim().length === 0) {
+            let rect = doc!
+              .getSelection()!
+              .getRangeAt(0)
+              .getBoundingClientRect();
+            this.setState({ rect });
+          }
+        }
+        if (this.state.isDisablePopup) return;
+        let selection = doc!.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        var rect = selection.getRangeAt(0).getBoundingClientRect();
+        this.setState({ rect });
+      });
+      doc.addEventListener("contextmenu", (event) => {
+        if (
+          this.props.currentBook.format === "PDF" &&
+          !ConfigService.getAllListConfig("convertPDFBooks").includes(
+            this.props.currentBook.key
+          )
+        ) {
+          let ownerDoc = (event.target as HTMLElement).ownerDocument;
+          let targetIframe = ownerDoc?.defaultView?.frameElement;
+          let id = targetIframe?.getAttribute("id") || "";
+          let chapterDocIndex = id ? parseInt(id.split("-").reverse()[0]) : 0;
+          this.setState({ chapterDocIndex });
+        }
+        if (document.location.href.indexOf("localhost") === -1) {
+          event.preventDefault();
+        }
+
+        if (!this.state.isDisablePopup && !this.state.isTouch) return;
+
+        if (
+          !doc!.getSelection() ||
+          doc!.getSelection()!.toString().trim().length === 0
+        ) {
+          return;
+        }
+        let selection = doc!.getSelection();
+
+        if (!selection || selection.rangeCount === 0) return;
+        var rect = selection.getRangeAt(0).getBoundingClientRect();
+        this.setState({ rect });
+      });
+    }
+  };
+  render() {
+    return (
+      <>
+        {this.props.htmlBook ? (
+          <PopupMenu
+            {...({
+              rendition: this.props.htmlBook.rendition,
+              rect: this.state.rect,
+              chapterDocIndex: this.state.chapterDocIndex,
+              chapter: this.state.chapter,
+            } as any)}
+          />
+        ) : null}
+        {this.props.htmlBook ? (
+          <PopupRefer
+            {...({
+              rendition: this.props.htmlBook.rendition,
+              chapterDocIndex: this.state.chapterDocIndex,
+            } as any)}
+          />
+        ) : null}
+        {this.props.isOpenMenu &&
+        this.props.htmlBook &&
+        (this.props.menuMode === "dict" ||
+          this.props.menuMode === "trans" ||
+          this.props.menuMode === "assistant" ||
+          this.props.menuMode === "note") ? (
+          <PopupBox
+            {...({
+              rendition: this.props.htmlBook.rendition,
+              rect: this.state.rect,
+              chapterDocIndex: this.state.chapterDocIndex,
+              chapter: this.state.chapter,
+            } as any)}
+          />
+        ) : null}
+        {this.props.htmlBook && this.props.currentBook.format !== "PDF" && (
+          <ImageViewer
+            {...({
+              isShow: this.props.isShow,
+              rendition: this.props.htmlBook.rendition,
+              handleEnterReader: this.props.handleEnterReader,
+              handleLeaveReader: this.props.handleLeaveReader,
+            } as any)}
+          />
+        )}
+        <div
+          className={
+            this.props.readerMode === "scroll"
+              ? "html-viewer-page scrolling-html-viewer-page"
+              : "html-viewer-page"
+          }
+          id="page-area"
+          style={
+            this.props.readerMode === "scroll" &&
+            document.body.clientWidth >= 570
+              ? {
+                  // marginLeft: this.state.pageOffset,
+                  // marginRight: this.state.pageOffset,
+                  paddingLeft: "0px",
+                  paddingRight: "0px",
+                  left: this.state.pageOffset,
+                  width: this.state.pageWidth,
+                }
+              : {
+                  left: this.state.pageOffset,
+                  width: this.state.pageWidth,
+                }
+          }
+        ></div>
+        <PageWidget />
+        {this.props.isHideBackground ? null : this.props.currentBook.key ? (
+          <Background />
+        ) : null}
+      </>
+    );
+  }
+}
+export default withRouter(Viewer as any);

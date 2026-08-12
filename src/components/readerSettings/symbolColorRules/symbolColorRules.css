@@ -1,0 +1,19 @@
+.symbol-color-rules { margin-top: 10px; }
+.symbol-color-rules-hint { margin: -3px 20px 10px; color: var(--color-text-secondary, #888); font-size: 12px; line-height: 1.45; }
+.symbol-color-rules-editor { margin: 0 20px 16px; padding: 10px; border: 1px solid var(--color-border, rgba(128, 128, 128, .24)); border-left: 3px solid #86bf8f; border-radius: 8px; background: var(--color-hover, rgba(128, 128, 128, .04)); }
+.symbol-color-rule { display: grid; grid-template-columns: minmax(42px, 1fr) 12px minmax(42px, 1fr) 46px 20px; gap: 6px; align-items: end; padding: 8px 0; border-bottom: 1px dashed var(--color-border, rgba(128, 128, 128, .2)); }
+.symbol-color-rule:last-of-type { border-bottom: 0; }
+.symbol-color-rule label { display: grid; gap: 4px; min-width: 0; }
+.symbol-color-rule label > span { color: var(--color-text-secondary, #888); font-size: 10px; }
+.symbol-color-rule input { box-sizing: border-box; width: 100%; min-width: 0; height: 27px; padding: 3px 6px; border: 1px solid var(--color-border, rgba(128, 128, 128, .3)); border-radius: 4px; background: var(--color-background, transparent); color: inherit; outline: none; text-align: center; }
+.symbol-color-rule input:focus { border-color: #86bf8f; }
+.symbol-color-rule-color input { padding: 2px; cursor: pointer; }
+.symbol-color-rule-arrow { padding-bottom: 6px; color: #86bf8f; text-align: center; }
+.symbol-color-rule-delete { height: 27px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--color-text-secondary, #888); cursor: pointer; font-size: 20px; line-height: 1; }
+.symbol-color-rule-delete:hover { background: rgba(211, 77, 77, .12); color: #d34d4d; }
+.symbol-color-rule-preview { grid-column: 1 / -1; overflow: hidden; color: var(--color-text-secondary, #888); font-family: Georgia, "Noto Serif SC", serif; font-size: 12px; white-space: nowrap; }
+.symbol-color-rule-actions { display: flex; flex-wrap: wrap; gap: 7px; padding-top: 10px; }
+.symbol-color-rule-actions button { border: 1px solid var(--color-border, rgba(128, 128, 128, .3)); border-radius: 4px; padding: 5px 8px; background: transparent; color: inherit; cursor: pointer; font-size: 11px; }
+.symbol-color-rule-actions button:hover { border-color: #86bf8f; }
+.symbol-color-rule-actions .symbol-color-rules-apply { border-color: #86bf8f; background: rgba(134, 191, 143, .12); }
+@media (max-width: 560px) { .symbol-color-rule { grid-template-columns: minmax(40px, 1fr) 10px minmax(40px, 1fr) 40px 18px; gap: 4px; } }

@@ -1,0 +1,240 @@
+.dict-container {
+  width: calc(100% - 50px);
+  height: calc(100% - 65px);
+  padding: 25px;
+  padding-top: 5px;
+}
+.dict-word {
+  font-size: 30px;
+  font-weight: bold;
+  line-height: 1.5;
+  display: inline-block;
+  margin-top: 10px;
+  margin-left: 5px;
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wiki-image {
+  float: right;
+  width: 43%;
+}
+.wiki-text::first-letter {
+  font-size: 3rem;
+}
+.dict-definition {
+  line-height: 30px;
+}
+.dict-original-word {
+  opacity: 0.6;
+  line-height: 20px;
+  margin-top: 10px;
+  margin-left: 5px;
+}
+.dict-word-type,
+.dict-learn-more {
+  color: #2084e8;
+  margin-bottom: 5px;
+  margin-top: 15px;
+}
+.dict-learn-more {
+  cursor: pointer;
+}
+.dict-text-box {
+  opacity: 1;
+  border-radius: 5px;
+  margin-top: 5px;
+  height: calc(100% - 45px);
+  user-select: text;
+  overflow-y: scroll;
+  padding: 8px;
+  box-sizing: border-box;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.dict-button-container {
+  position: absolute;
+  bottom: 8px;
+  right: 20px;
+}
+.dict-service-container {
+  position: absolute;
+  /* width: calc(100% - 32px); */
+  top: 30px;
+  right: 25px;
+}
+.dict-service-selector {
+  width: 100px;
+  height: 30px;
+  opacity: 1;
+  font-size: 15px;
+  line-height: 30px;
+  border: none;
+  cursor: pointer;
+  color: #2084e8;
+  background-color: transparent;
+}
+.add-dialog-shelf-list-option {
+  color: black;
+}
+.dict-url {
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  margin-top: 20px;
+}
+/* .dict-container .r0bn4c {
+  font-weight: bold;
+  color: #2084e8;
+}
+.dict-container .r0bn4c::before {
+  content: "[";
+  font-weight: bold;
+}
+.dict-container .r0bn4c::after {
+  content: "]";
+  font-weight: bold;
+} */
+/* .dict-container ol {
+  counter-reset: my-counter;
+  list-style-type: none;
+} */
+
+/* .dict-container li:before {
+  counter-increment: my-counter;
+  content: counter(my-counter) ". ";
+  font-weight: bold;
+} */
+/* .dict-container li div {
+  display: inline;
+} */
+/* .dict-container ul {
+  counter-reset: my-counter;
+}
+
+.dict-container li {
+  counter-increment: my-counter;
+}
+
+.dict-container li::before {
+  content: counter(my-counter) ". ";
+  font-weight: bold;
+} */
+/* 在 popupDict.css 中添加这些规则，它们会覆盖 reset.css 中的全局规则 */
+.dict-container ul {
+  list-style-type: disc !important; /* 实心圆点 */
+  padding-left: 2em !important; /* 添加缩进 */
+  margin: 1em 0 !important; /* 添加上下边距 */
+}
+
+.dict-container ol {
+  list-style-type: decimal !important; /* 数字编号 */
+  padding-left: 2em !important; /* 添加缩进 */
+  margin: 1em 0 !important; /* 添加上下边距 */
+}
+
+.dict-container li {
+  list-style: inherit !important; /* 继承父元素的列表样式 */
+  display: list-item !important; /* 显示为列表项 */
+  margin: 0.5em 0 !important; /* 添加上下边距 */
+}
+
+/* 定义嵌套列表的样式 */
+.dict-container ul ul {
+  list-style-type: circle !important; /* 二级列表使用空心圆点 */
+}
+
+.dict-container ul ul ul {
+  list-style-type: square !important; /* 三级列表使用方块 */
+}
+
+.dict-container ol ol {
+  list-style-type: lower-alpha !important; /* 二级有序列表使用小写字母 */
+}
+.audio-player {
+  width: 100px;
+  height: 30px;
+  margin-right: 10px;
+}
+.audio-label {
+  display: inline-block;
+  font-weight: bold;
+  position: relative;
+  bottom: 9px;
+  margin-right: 5px;
+}
+.audio-note {
+  display: inline-block;
+  position: relative;
+  bottom: 9px;
+  margin-right: 5px;
+}
+.audio-player::-webkit-media-controls-timeline {
+  display: none !important;
+}
+
+.audio-player::-webkit-media-controls-current-time-display {
+  display: none !important;
+}
+
+.audio-player::-webkit-media-controls-time-remaining-display {
+  display: none !important;
+}
+
+.audio-player::-webkit-media-controls-mute-button {
+  display: none !important;
+}
+
+.audio-player::-webkit-media-controls-volume-slider {
+  display: none !important;
+}
+
+.audio-player::-webkit-media-controls-volume-slider-container {
+  display: none !important;
+}
+.audio-container {
+  display: inline-block;
+  width: 50px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-right: 10px;
+  margin-left: 10px;
+  margin-top: -10px;
+  position: relative;
+  top: 10px;
+}
+
+.dict-ai-answer-container {
+  margin-top: 10px;
+}
+
+.dict-ai-answer-title {
+  color: #2084e8;
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.dict-ai-answer-icon {
+  margin-right: 6px;
+  font-size: 16px;
+}
+
+.dict-ai-answer-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+.dict-ai-answer-content {
+  font-size: 14px;
+  line-height: 22px;
+  user-select: text;
+}

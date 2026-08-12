@@ -1,0 +1,342 @@
+import React from "react";
+import "./editDialog.css";
+import "../metadataDialog/metadataDialog.css";
+
+import { Trans } from "react-i18next";
+import { EditDialogProps, EditDialogState } from "./interface";
+import toast from "react-hot-toast";
+import DatabaseService from "../../../utils/storage/databaseService";
+import CoverUtil from "../../../utils/file/coverUtil";
+import { isElectron } from "react-device-detect";
+import MetadataDialog from "../metadataDialog";
+import { MetadataResult } from "../metadataDialog/interface";
+import { trimSpecialCharacters } from "../../../utils/common";
+declare var window: any;
+
+class EditDialog extends React.Component<EditDialogProps, EditDialogState> {
+  private nameRef = React.createRef<HTMLInputElement>();
+  private authorRef = React.createRef<HTMLInputElement>();
+  private publisherRef = React.createRef<HTMLInputElement>();
+  private descriptionRef = React.createRef<HTMLTextAreaElement>();
+  private coverInputRef = React.createRef<HTMLInputElement>();
+
+  constructor(props: EditDialogProps) {
+    super(props);
+    this.state = {
+      isCheck: false,
+      coverPreview: "",
+      bookPath: "",
+      isMetadataDialogOpen: false,
+      pendingName: "",
+      pendingAuthor: "",
+      pendingPublisher: "",
+      pendingDescription: "",
+      pendingPublishedDate: "",
+      pendingCover: "",
+    };
+  }
+
+  async componentDidMount() {
+    if (this.nameRef.current) {
+      this.nameRef.current.value = this.props.currentBook.name || "";
+    }
+    if (this.authorRef.current) {
+      this.authorRef.current.value = this.props.currentBook.author || "";
+    }
+    if (this.publisherRef.current) {
+      this.publisherRef.current.value = this.props.currentBook.publisher || "";
+    }
+    if (this.descriptionRef.current) {
+      this.descriptionRef.current.value =
+        this.props.currentBook.description || "";
+    }
+    const cover = await CoverUtil.getCover(this.props.currentBook);
+    if (cover) {
+      this.setState({ coverPreview: cover });
+    }
+    this.setState({ bookPath: this.props.currentBook.path || "" });
+  }
+
+  handleApplyMetadata = (metadata: MetadataResult) => {
+    if (metadata.name !== undefined && this.nameRef.current) {
+      this.nameRef.current.value = metadata.name;
+    }
+    if (metadata.author !== undefined && this.authorRef.current) {
+      this.authorRef.current.value = metadata.author;
+    }
+    if (metadata.publisher !== undefined && this.publisherRef.current) {
+      this.publisherRef.current.value = metadata.publisher;
+    }
+    if (metadata.description !== undefined && this.descriptionRef.current) {
+      this.descriptionRef.current.value = metadata.description;
+    }
+    this.setState({
+      pendingName: metadata.name || "",
+      pendingAuthor: metadata.author || "",
+      pendingPublisher: metadata.publisher || "",
+      pendingDescription: metadata.description || "",
+      pendingPublishedDate: metadata.publishedDate || "",
+      pendingCover: metadata.cover || "",
+      coverPreview: metadata.cover
+        ? metadata.cover.replace(/^http:/, "https:")
+        : this.state.coverPreview,
+    });
+  };
+
+  handleCancel = () => {
+    this.props.handleEditDialog(false);
+  };
+
+  handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      this.setState({ coverPreview: base64 });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  handleSelectBookPath = async () => {
+    if (!isElectron) return;
+    const { ipcRenderer } = window.require("electron");
+    const filePath = await ipcRenderer.invoke("select-file");
+    if (!filePath) return;
+    this.setState({ bookPath: filePath });
+  };
+
+  handleComfirm = async () => {
+    const name = this.nameRef.current?.value || "";
+    const author = this.authorRef.current?.value || "";
+    const publisher = this.publisherRef.current?.value || "";
+    const description = this.descriptionRef.current?.value || "";
+
+    this.props.currentBook.name = name;
+    this.props.currentBook.author = author;
+    this.props.currentBook.publisher = publisher;
+    this.props.currentBook.description = description;
+    if (this.state.bookPath) {
+      this.props.currentBook.path = this.state.bookPath;
+    }
+
+    // Handle cover update: if user picked a new image (base64 data URL) or got cover from metadata
+    let { coverPreview, pendingCover } = this.state;
+    if (coverPreview && coverPreview.startsWith("data:")) {
+      this.props.currentBook.cover = coverPreview;
+      await CoverUtil.addCover(this.props.currentBook);
+      this.props.handleRefreshBookCover(this.props.currentBook.key);
+    } else if (pendingCover) {
+      if (pendingCover.startsWith("http")) {
+        let response = await fetch(pendingCover);
+        let blob = await response.blob();
+        pendingCover = await CoverUtil.blobToBase64(blob);
+      }
+      this.props.currentBook.cover = pendingCover;
+      await CoverUtil.addCover(this.props.currentBook);
+      this.props.handleRefreshBookCover(this.props.currentBook.key);
+    }
+
+    await DatabaseService.updateRecord(this.props.currentBook, "books");
+    this.props.handleEditDialog(false);
+    this.props.handleFetchBooks();
+    toast.success(this.props.t("Edition successful"));
+    this.props.handleActionDialog(false);
+  };
+
+  render() {
+    const { coverPreview } = this.state;
+    return (
+      <div className="edit-dialog-container">
+        {this.state.isMetadataDialogOpen && (
+          <MetadataDialog
+            {...({
+              currentBookName: trimSpecialCharacters(
+                this.nameRef.current?.value || this.props.currentBook.name || ""
+              ),
+              currentBookAuthor:
+                this.authorRef.current?.value ||
+                this.props.currentBook.author ||
+                "",
+              handleMetadataDialog: (isShow) => {
+                this.setState({ isMetadataDialogOpen: isShow });
+              },
+              handleApplyMetadata: this.handleApplyMetadata,
+            } as any)}
+          />
+        )}
+        <div className="edit-dialog-title" style={{ position: "relative" }}>
+          <Trans>Edit Book</Trans>
+          <div
+            style={{
+              fontSize: 16,
+              color: "rgb(231, 69, 69)",
+              position: "absolute",
+              right: 20,
+              top: 23,
+              cursor: "pointer",
+              opacity: 0.8,
+            }}
+            onClick={() => {
+              if (!this.props.isAuthed) {
+                toast(
+                  this.props.t("Please upgrade to Pro to use this feature")
+                );
+                this.props.handleSetting(true);
+                this.props.handleSettingMode("account");
+                return;
+              }
+              this.setState({ isMetadataDialogOpen: true });
+            }}
+          >
+            <Trans>Get metadata</Trans>
+          </div>
+        </div>
+
+        <div className="edit-dialog-body">
+          {/* Cover */}
+          <div className="edit-dialog-field">
+            <span className="edit-dialog-label">
+              <Trans>Cover</Trans>
+            </span>
+            <div
+              className="edit-dialog-cover-box"
+              onClick={() => this.coverInputRef.current?.click()}
+              title={this.props.t("Click to select image")}
+            >
+              {coverPreview ? (
+                <img
+                  src={coverPreview}
+                  alt="cover"
+                  className="edit-dialog-cover-img"
+                />
+              ) : (
+                <span className="edit-dialog-cover-placeholder">
+                  <Trans>Click to select image</Trans>
+                </span>
+              )}
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              ref={this.coverInputRef}
+              style={{ display: "none" }}
+              onChange={this.handleCoverSelect}
+            />
+          </div>
+
+          {/* Book name */}
+          <div className="edit-dialog-field">
+            <span className="edit-dialog-label">
+              <Trans>Book name</Trans>
+            </span>
+            <input className="edit-dialog-input" ref={this.nameRef} />
+          </div>
+
+          {/* Author */}
+          <div className="edit-dialog-field">
+            <span className="edit-dialog-label">
+              <Trans>Author</Trans>
+            </span>
+            <input className="edit-dialog-input" ref={this.authorRef} />
+          </div>
+
+          {/* Publisher */}
+          <div className="edit-dialog-field">
+            <span className="edit-dialog-label">
+              <Trans>Publisher</Trans>
+            </span>
+            <input className="edit-dialog-input" ref={this.publisherRef} />
+          </div>
+
+          {/* Description */}
+          <div className="edit-dialog-field">
+            <span className="edit-dialog-label">
+              <Trans>Description</Trans>
+            </span>
+            <textarea
+              className="edit-dialog-textarea"
+              ref={this.descriptionRef}
+              rows={3}
+            />
+          </div>
+
+          {/* Book path */}
+          {isElectron && (
+            <div className="edit-dialog-field">
+              <div className="edit-dialog-path-row">
+                <span className="edit-dialog-label">
+                  <Trans>Book path</Trans>
+                </span>
+
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <span
+                    className="change-location-button"
+                    onClick={() => {
+                      const { ipcRenderer } = window.require("electron");
+                      const fs = window.require("fs");
+                      if (
+                        !this.state.bookPath ||
+                        !fs.existsSync(this.state.bookPath)
+                      ) {
+                        toast.error(this.props.t("Book not exists"));
+                        return;
+                      }
+                      ipcRenderer.invoke("open-explorer-folder", {
+                        path: this.state.bookPath,
+                        isFolder: false,
+                      });
+                    }}
+                  >
+                    <Trans>Locate</Trans>
+                  </span>
+                  <span
+                    className="change-location-button"
+                    onClick={this.handleSelectBookPath}
+                  >
+                    <Trans>Relink</Trans>
+                  </span>
+                </div>
+              </div>
+              <div
+                className="setting-dialog-location-title"
+                style={{
+                  width: "100%",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  margin: "0px",
+                  boxSizing: "border-box",
+                  marginTop: "4px",
+                  marginBottom: "4px",
+                }}
+              >
+                {this.state.bookPath || "-"}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="edit-dialog-footer">
+          <div
+            className="add-dialog-cancel"
+            onClick={() => {
+              this.handleCancel();
+            }}
+          >
+            <Trans>Cancel</Trans>
+          </div>
+          <div
+            className="add-dialog-confirm"
+            onClick={() => {
+              this.handleComfirm();
+            }}
+          >
+            <Trans>Confirm</Trans>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+export default EditDialog;

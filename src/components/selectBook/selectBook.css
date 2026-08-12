@@ -1,0 +1,27 @@
+.select-more-actions {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  bottom: 35px;
+  z-index: 10;
+  animation: popup 0.1s ease-in-out 0s 1;
+  border-radius: 5px;
+  width: 160px;
+  padding: 5px;
+}
+.select-more-actions-container {
+  display: inline-block;
+}
+.select-book-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.4;
+}
+.select-export-format-submenu {
+  width: 110px;
+  position: absolute;
+  z-index: 11;
+}

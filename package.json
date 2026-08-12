@@ -1,0 +1,371 @@
+{
+  "name": "books-reader",
+  "main": "main.js",
+  "version": "2.4.4",
+  "description": "Books is a personal cross-platform ebook reader",
+  "author": {
+    "name": "user-A100"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": "https://github.com/user-A100/books-reader",
+  "private": false,
+  "resolutions": {
+    "@types/react": "^18.3.1",
+    "node-gyp": "^10.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.564.0",
+    "@mozilla/readability": "^0.6.0",
+    "adm-zip": "^0.5.2",
+    "ajv": "8.20.0",
+    "axios": "0.31.1",
+    "basic-ftp": "5.3.1",
+    "better-sqlite3": "^11.6.0",
+    "buffer": "^6.0.3",
+    "chardet": "^2.0.0",
+    "cheerio": "1.2.0",
+    "color-thief-browser": "^2.0.2",
+    "copy-text-to-clipboard": "^2.2.0",
+    "crypto-js": "^4.2.0",
+    "discord-rpc": "^4.0.1",
+    "dompurify": "3.4.0",
+    "electron-is-dev": "^1.1.0",
+    "electron-log": "^5.4.3",
+    "electron-store": "^8.0.1",
+    "fflate": "^0.8.2",
+    "file-saver": "^2.0.5",
+    "form-data": "4.0.4",
+    "fs-extra": "^9.1.0",
+    "hammerjs": "^2.0.8",
+    "howler": "^2.2.3",
+    "js-mdict": "6.0.8",
+    "js-untar": "^2.0.0",
+    "jszip": "^3.10.1",
+    "localforage": "^1.10.0",
+    "mammoth": "^1.8.0",
+    "marked": "^15.0.11",
+    "megajs": "^1.3.9",
+    "mhtml2html": "^3.0.0",
+    "node-machine-id": "^1.1.12",
+    "qs": "^6.11.2",
+    "rangy": "1.3.0",
+    "react-hot-toast": "^2.1.1",
+    "react-sortablejs": "^6.1.4",
+    "react-tooltip": "^5.28.0",
+    "recharts": "^3.8.1",
+    "sortablejs": "^1.15.6",
+    "sse.js": "^2.6.0",
+    "ssh2-sftp-client": "^11.0.0",
+    "underscore": "^1.13.7",
+    "uuid": "^11.0.5",
+    "webdav": "^5.7.1"
+  },
+  "devDependencies": {
+    "@types/copy-text-to-clipboard": "^2.0.4",
+    "@types/file-saver": "^2.0.7",
+    "@types/hammerjs": "^2.0.46",
+    "@types/i18next": "^13.0.0",
+    "@types/jest": "27.5.2",
+    "@types/node": "^13.13.2",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@types/react-i18next": "^8.1.0",
+    "@types/react-router-dom": "^5.1.6",
+    "@types/react-tooltip": "^4.2.4",
+    "@types/underscore": "^1.13.0",
+    "@types/ws": "^8.5.5",
+    "classnames": "^2.2.6",
+    "concurrently": "^5.0.1",
+    "cross-env": "^6.0.3",
+    "electron": "^34.0.1",
+    "electron-builder": "^26.0.12",
+    "electron-rebuild": "^3.2.9",
+    "hard-source-webpack-plugin": "^0.13.1",
+    "html-react-parser": "^5.1.10",
+    "i18next": "^23.11.5",
+    "lottie-react": "^2.4.0",
+    "nodemon": "^3.1.3",
+    "react": "^18.3.1",
+    "react-colorful": "^5.6.1",
+    "react-device-detect": "^2.2.3",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
+    "react-i18next": "^14.1.3",
+    "react-redux": "^8.1.3",
+    "react-router-dom": "^5.2.0",
+    "react-scripts": "^5.0.1",
+    "redux": "^4.0.5",
+    "redux-thunk": "^2.3.0",
+    "source-map-explorer": "^2.5.2",
+    "typescript": "^5.9.3",
+    "wait-on": "^7.0.1"
+  },
+  "scripts": {
+    "analyze": "source-map-explorer 'build/static/js/*.js'",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "ele": "electron .",
+    "dev": "concurrently \"cross-env BROWSER=none npm start\" \"wait-on http://127.0.0.1:3000/ && nodemon --watch main.js --exec electron .\"",
+    "dev:background": "node scripts/start-dev-background.js",
+    "dev:stop": "node scripts/stop-dev-background.js",
+    "release": "electron-builder",
+    "prerelease": "react-scripts build",
+    "postinstall": "node scripts/patch-nan.js && electron-builder install-app-deps",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
+  },
+  "homepage": "./",
+  "build": {
+    "appId": "com.usera100.booksreader",
+    "productName": "Books",
+    "copyright": "Copyright (c) 2026 user-A100. Based on Koodo Reader contributors.",
+    "files": [
+      "build/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "src/assets/lib/kookit-extra.min.mjs",
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/macos",
+        "to": "assets/macos",
+        "filter": [
+          "ocr-*-apple-darwin"
+        ]
+      }
+    ],
+    "protocols": {
+      "name": "Books Reader",
+      "schemes": [
+        "books-reader"
+      ]
+    },
+    "directories": {
+      "buildResources": "assets"
+    },
+    "publish": {
+      "provider": "github",
+      "repo": "books-reader",
+      "owner": "user-A100"
+    },
+    "buildDependenciesFromSource": false,
+    "nodeGypRebuild": false,
+    "fileAssociations": [
+      {
+        "ext": "epub",
+        "icon": "assets/icons/epub",
+        "role": "Viewer",
+        "mimeType": "application/epub+zip"
+      },
+      {
+        "ext": "pdf",
+        "icon": "assets/icons/pdf",
+        "role": "Viewer",
+        "mimeType": "application/pdf"
+      },
+      {
+        "ext": "mobi",
+        "icon": "assets/icons/mobi",
+        "role": "Viewer",
+        "mimeType": "application/x-mobipocket-ebook"
+      },
+      {
+        "ext": "azw3",
+        "icon": "assets/icons/azw3",
+        "role": "Viewer",
+        "mimeType": "application/vnd.amazon.ebook"
+      },
+      {
+        "ext": "azw",
+        "icon": "assets/icons/azw3",
+        "role": "Viewer",
+        "mimeType": "application/vnd.amazon.ebook"
+      },
+      {
+        "ext": "cbz",
+        "icon": "assets/icons/comic",
+        "role": "Viewer",
+        "mimeType": "application/x-cbz"
+      },
+      {
+        "ext": "cbr",
+        "icon": "assets/icons/comic",
+        "role": "Viewer",
+        "mimeType": "application/x-cbr"
+      },
+      {
+        "ext": "cbt",
+        "icon": "assets/icons/comic",
+        "role": "Viewer",
+        "mimeType": "application/x-cbt"
+      },
+      {
+        "ext": "cb7",
+        "icon": "assets/icons/comic",
+        "role": "Viewer",
+        "mimeType": "application/x-cb7"
+      },
+      {
+        "ext": "fb2",
+        "icon": "assets/icons/fb2",
+        "role": "Viewer",
+        "mimeType": "application/x-fictionbook+xml"
+      }
+    ],
+    "extends": null,
+    "dmg": {
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ]
+    },
+    "mac": {
+      "darkModeSupport": true,
+      "entitlements": "assets/macos/entitlements.mac.plist",
+      "entitlementsInherit": "assets/macos/entitlements.mac.plist",
+      "identity": "Liang Guo",
+      "gatekeeperAssess": false,
+      "hardenedRuntime": true,
+      "notarize": true,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/icons/icon.icns",
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icons/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}-Win.${ext}"
+    },
+    "linux": {
+      "icon": "assets/icons",
+      "category": "Office",
+      "target": [
+        {
+          "target": "snap",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-${arch}-Portable.${ext}"
+    },
+    "appx": {
+      "applicationId": "com.usera100.booksreader",
+      "identityName": "UserA100.BooksReader",
+      "publisher": "CN=0AEAD7C6-DF4A-4D05-8FA0-D816D7DE37FF",
+      "publisherDisplayName": "user-A100",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "displayName": "Books",
+      "backgroundColor": "transparent"
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "buildUniversalInstaller": false,
+      "include": "assets/windows/installer.nsh"
+    },
+    "snap": {
+      "base": "core22",
+      "publish": [
+        {
+          "provider": "github"
+        }
+      ]
+    }
+  },
+  "eslintConfig": {
+    "extends": "react-app",
+    "rules": {
+      "no-unused-vars": 2
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "babel": {
+    "presets": [
+      "react-app"
+    ]
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^cheerio/slim$": "<rootDir>/node_modules/cheerio/dist/commonjs/slim.js"
+    }
+  }
+}

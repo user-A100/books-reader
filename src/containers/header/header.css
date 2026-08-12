@@ -1,0 +1,229 @@
+.header {
+  width: 100%;
+  height: 80px;
+  overflow: hidden;
+  margin-left: 190px;
+}
+
+.setting-icon-container:hover {
+  border-radius: 50%;
+}
+.icon-pro-close {
+  font-size: 12px !important;
+  line-height: 30px !important;
+  display: inline-block;
+  /* margin: 0px 5px; */
+  opacity: 0.3;
+}
+.header-sort-icon {
+  float: left;
+  margin-top: 3px;
+  font-size: 26px;
+}
+.header-archive-icon {
+  float: left;
+  margin-top: 3px;
+  font-size: 21px;
+}
+.header-feedback {
+  font-size: 15px;
+  color: rgb(35, 170, 242);
+}
+.only-local-container {
+  position: absolute;
+  left: 520px;
+  margin-top: 29px;
+}
+.only-local-text {
+  float: left;
+  font-size: 15px;
+  line-height: 27px;
+  opacity: 1;
+}
+.only-local-icon {
+  float: left;
+  margin-top: 6px;
+  margin-left: 6px;
+  width: 30px;
+  height: 16px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.only-local-slider {
+  float: left;
+  margin-top: 2px;
+  margin-left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.import-from-cloud {
+  margin-right: 20px;
+  margin-top: 23px;
+  width: 138px;
+  max-width: 158px;
+  height: 42px;
+  opacity: 1;
+  padding: 0 !important;
+  border-radius: 25px;
+  font-size: 15px;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: 0.2s;
+  position: fixed;
+  right: 0px;
+  top: 0px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.import-from-cloud:hover .animation-mask {
+  transform: scaleX(1);
+}
+.import-from-local:hover .animation-mask-local {
+  transform: scaleX(1);
+}
+@media screen and (max-width: 950px) {
+  .import-from-cloud {
+    position: fixed;
+    left: 15px;
+    top: calc(100vh - 110px);
+    width: 138px;
+  }
+  .import-from-local {
+    position: fixed !important;
+    left: 15px;
+    top: calc(100vh - 80px) !important;
+    width: 138px;
+    padding: 0px !important;
+  }
+  .header-report-container {
+    right: 15px !important;
+  }
+}
+.download-demo-book {
+  text-decoration: underline;
+  width: 200px;
+  position: absolute;
+  left: 690px;
+  top: 29px;
+  cursor: pointer;
+  color: #0078d4;
+}
+@media screen and (max-width: 1250px) {
+  .download-demo-book {
+    display: none;
+  }
+}
+.animation-mask,
+.animation-mask-local {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  transition: 0.1s;
+  transform: scaleX(0);
+  transform-origin: left;
+  border-radius: 19px;
+}
+.setting-icon-parrent {
+  position: absolute;
+  top: 18px;
+  margin-left: 280px;
+  height: 50px;
+  z-index: 1;
+}
+.header-search-container {
+  position: absolute;
+  top: 23px;
+  margin-left: 40px;
+  width: 220px;
+}
+.setting-icon {
+  float: left;
+}
+.header-report-container {
+  text-align: right;
+  height: 30px;
+  line-height: 30px;
+  cursor: pointer;
+  border-radius: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
+  position: absolute;
+  top: 30px;
+  right: 180px;
+
+  text-underline-offset: 3px;
+}
+.setting-icon-container {
+  width: 50px;
+  height: 50px;
+  font-size: 25px;
+  line-height: 50px;
+  cursor: pointer;
+  transition: 0.1s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-left: 15px;
+  float: left;
+}
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.icon-rotate {
+  animation: rotate 2s linear infinite;
+}
+.header-chat-widget {
+  position: absolute;
+  right: 20px;
+  bottom: 40px;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  transform: scale(1);
+  overflow: hidden;
+}
+
+.header-chat-widget-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #e53935;
+  color: #fff;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 1001;
+  box-sizing: border-box;
+}
+
+.header-chat-widget:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05) translateY(-3px);
+}

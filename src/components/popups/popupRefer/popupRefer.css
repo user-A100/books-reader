@@ -1,0 +1,29 @@
+.popup-ref-box {
+  width: 250px;
+  max-height: 250px;
+  padding: 20px;
+  overflow: scroll;
+  overflow-x: hidden;
+  line-height: 1.25;
+}
+.popup-ref-box {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+.popup-ref-button {
+  width: 100%;
+  height: 20px;
+  margin-top: 10px;
+  font-size: 14px;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+}
+.popup-ref-box * {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}

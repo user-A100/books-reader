@@ -1,0 +1,326 @@
+import React from "react";
+import Sidebar from "../../containers/sidebar";
+import Header from "../../containers/header";
+import DeleteDialog from "../../components/dialogs/deleteDialog";
+import EditDialog from "../../components/dialogs/editDialog";
+import AddDialog from "../../components/dialogs/addDialog";
+import SortDialog from "../../components/dialogs/sortBookDialog";
+import LocalFileDialog from "../../components/dialogs/localFileDialog";
+import ImportDialog from "../../components/dialogs/importDialog";
+import OPDSDialog from "../../components/dialogs/opdsDialog";
+import { ManagerProps, ManagerState } from "./interface";
+import { Trans } from "react-i18next";
+import SettingDialog from "../../components/dialogs/settingDialog";
+import { Route, Switch } from "react-router-dom";
+import { routes } from "../../router/routes";
+import Arrow from "../../components/arrow";
+import LoadingDialog from "../../components/dialogs/loadingDialog";
+import { Toaster } from "react-hot-toast";
+import DetailDialog from "../../components/dialogs/detailDialog";
+import { Tooltip } from "react-tooltip";
+import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
+import SortShelfDialog from "../../components/dialogs/sortShelfDialog";
+import PopupNote from "../../components/popups/popupNote";
+import toast from "react-hot-toast";
+import { supportedFormats } from "../../utils/common";
+import {
+  isBookDragEvent,
+  isExternalFileDragEvent,
+} from "../../utils/reader/bookDrag";
+import Footer from "../../components/footer";
+import ProtectionOverlay from "../../components/protection";
+class Manager extends React.Component<ManagerProps, ManagerState> {
+  timer!: NodeJS.Timeout;
+  private isDraggingFromApp = false;
+  constructor(props: ManagerProps) {
+    super(props);
+    this.state = {
+      totalBooks: parseInt(ConfigService.getReaderConfig("totalBooks")) || 0,
+      favoriteBooks: Object.keys(
+        ConfigService.getAllListConfig("favoriteBooks")
+      ).length,
+      isAuthed: false,
+      isError: false,
+      isCopied: false,
+      isUpdated: false,
+      isDrag: false,
+      token: "",
+    };
+  }
+
+  UNSAFE_componentWillReceiveProps(nextProps: ManagerProps) {
+    if (nextProps.books && this.state.totalBooks !== nextProps.books.length) {
+      this.setState(
+        {
+          totalBooks: nextProps.books.length,
+        },
+        () => {
+          ConfigService.setReaderConfig(
+            "totalBooks",
+            this.state.totalBooks.toString()
+          );
+        }
+      );
+    }
+    if (nextProps.books && nextProps.books.length === 1 && !this.props.books) {
+      this.props.history.push("/manager/home");
+    }
+    if (this.props.mode !== nextProps.mode) {
+      this.setState({
+        favoriteBooks: Object.keys(
+          ConfigService.getAllListConfig("favoriteBooks")
+        ).length,
+      });
+    }
+  }
+  UNSAFE_componentWillMount() {
+    this.props.handleFetchBooks();
+    this.props.handleFetchPlugins();
+    this.props.handleFetchNotes();
+    this.props.handleFetchBookmarks();
+    this.props.handleFetchBookSortCode();
+    this.props.handleFetchNoteSortCode();
+    this.props.handleFetchViewMode();
+  }
+  componentDidMount() {
+    this.props.handleReadingState(false);
+    document.addEventListener("dragstart", this.handleDocumentDragStart, true);
+    document.addEventListener("dragend", this.handleDocumentDragEnd, true);
+    document.addEventListener("dragenter", this.handleExternalDragEnter, true);
+    // Auto switch to configured startup shelf
+    const startupShelf = ConfigService.getReaderConfig("startupShelf");
+    if (startupShelf) {
+      const shelfList = ConfigService.getAllMapConfig("shelfList") || {};
+      if (shelfList.hasOwnProperty(startupShelf)) {
+        this.props.handleShelf(startupShelf);
+        this.props.handleMode("shelf");
+        this.props.history.push("/manager/shelf");
+      }
+    }
+  }
+  componentWillUnmount() {
+    document.removeEventListener(
+      "dragstart",
+      this.handleDocumentDragStart,
+      true
+    );
+    document.removeEventListener("dragend", this.handleDocumentDragEnd, true);
+    document.removeEventListener(
+      "dragenter",
+      this.handleExternalDragEnter,
+      true
+    );
+  }
+
+  handleDocumentDragStart = (e: DragEvent) => {
+    if (isBookDragEvent(e)) {
+      this.isDraggingFromApp = true;
+    }
+  };
+  handleDocumentDragEnd = () => {
+    if (this.isDraggingFromApp) {
+      this.handleDrag(false);
+    }
+    this.isDraggingFromApp = false;
+  };
+  handleExternalDragEnter = (e: DragEvent) => {
+    if (isExternalFileDragEvent(e)) {
+      this.handleDrag(true);
+    }
+  };
+
+  handleDrag = (isDrag: boolean) => {
+    this.setState({ isDrag });
+  };
+  render() {
+    let { books } = this.props;
+    const PopupProps = {
+      chapterDocIndex: 0,
+      chapter: "test",
+    };
+    return (
+      <div
+        className="manager"
+        onDragEnter={(e) => {
+          if (isExternalFileDragEvent(e)) {
+            this.handleDrag(true);
+          }
+        }}
+      >
+        <ProtectionOverlay />
+        <Tooltip id="my-tooltip" style={{ zIndex: 25 }} />
+        {this.props.isShowPopupNote && (
+          <div
+            className="popup-box-container"
+            style={{
+              marginLeft: 0,
+              height: "360px",
+            }}
+          >
+            <PopupNote {...(PopupProps as any)} />
+          </div>
+        )}
+
+        <div
+          className={`drag-background${this.state.isDrag ? " drag-active" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleDrag(false);
+            const collectFiles = (entry: FileSystemEntry): Promise<File[]> => {
+              return new Promise((resolve) => {
+                if (entry.isFile) {
+                  (entry as FileSystemFileEntry).file(
+                    (file) => resolve([file]),
+                    () => resolve([])
+                  );
+                } else if (entry.isDirectory) {
+                  const reader = (
+                    entry as FileSystemDirectoryEntry
+                  ).createReader();
+                  const readAll = (
+                    collected: FileSystemEntry[] = []
+                  ): Promise<FileSystemEntry[]> =>
+                    new Promise((res) => {
+                      reader.readEntries(
+                        (results) => {
+                          if (results.length === 0) {
+                            res(collected);
+                          } else {
+                            readAll([
+                              ...collected,
+                              ...Array.from(results),
+                            ]).then(res);
+                          }
+                        },
+                        () => res(collected)
+                      );
+                    });
+                  readAll().then((entries) =>
+                    Promise.all(entries.map(collectFiles)).then((arrays) =>
+                      resolve(([] as File[]).concat(...arrays))
+                    )
+                  );
+                } else {
+                  resolve([]);
+                }
+              });
+            };
+            const items = e.dataTransfer.items;
+            let allFiles: File[] = [];
+            if (items && items.length > 0) {
+              const entries: FileSystemEntry[] = [];
+              for (let i = 0; i < items.length; i++) {
+                const entry = items[i].webkitGetAsEntry();
+                if (entry) entries.push(entry);
+              }
+              const fileArrays = await Promise.all(entries.map(collectFiles));
+              allFiles = ([] as File[]).concat(...fileArrays);
+            }
+            for (const file of allFiles) {
+              const ext = "." + file.name.split(".").pop()?.toLowerCase();
+              if (!supportedFormats.includes(ext)) {
+                toast.error(
+                  this.props.t("Unsupported file format") + ": " + ext
+                );
+                continue;
+              }
+              await this.props.importBookFunc(file);
+            }
+            if (
+              ConfigService.getReaderConfig("isDisableAutoSync") !== "yes" &&
+              ConfigService.getItem("defaultSyncOption")
+            ) {
+              await this.props.cloudSyncFunc();
+            }
+          }}
+          onClick={() => {
+            this.props.handleEditDialog(false);
+            this.props.handleDeleteDialog(false);
+            this.props.handleAddDialog(false);
+            this.props.handleDetailDialog(false);
+            this.props.handleLoadingDialog(false);
+            if (!this.props.isAuthed) {
+              this.props.handleNewDialog(false);
+              this.props.handleShowSupport(false);
+            }
+            this.props.handleLocalFileDialog(false);
+            this.props.handleImportDialog(false);
+            this.props.handleShowPopupNote(false);
+            this.props.handleSortShelfDialog(false);
+            this.props.handleSetting(false);
+            this.handleDrag(false);
+          }}
+          style={
+            this.props.isSettingOpen ||
+            this.props.isOpenImportDialog ||
+            this.props.isOpenOPDSDialog ||
+            this.props.isOpenSortShelfDialog ||
+            this.props.isShowNew ||
+            this.props.isShowSupport ||
+            this.props.isOpenDeleteDialog ||
+            this.props.isOpenEditDialog ||
+            this.props.isOpenLocalFileDialog ||
+            this.props.isDetailDialog ||
+            this.props.isShowPopupNote ||
+            this.props.isOpenAddDialog ||
+            this.props.isShowLoading ||
+            this.state.isDrag
+              ? {}
+              : {
+                  display: "none",
+                }
+          }
+        >
+          {this.state.isDrag && (
+            <div className="drag-info">
+              <p className="arrow-text">
+                <Trans>Drop your books here</Trans>
+              </p>
+            </div>
+          )}
+        </div>
+        <Sidebar />
+        <Toaster
+          toastOptions={{
+            style: {
+              wordWrap: "break-word",
+              wordBreak: "break-word",
+              whiteSpace: "normal",
+              overflowWrap: "break-word",
+            },
+          }}
+        />
+        <Header {...({ handleDrag: this.handleDrag } as any)} />
+        {this.props.isOpenDeleteDialog && <DeleteDialog />}
+        {this.props.isOpenEditDialog && <EditDialog />}
+        {this.props.isOpenAddDialog && <AddDialog />}
+        {this.props.isShowLoading && <LoadingDialog />}
+        {this.props.isSortDisplay && <SortDialog />}
+        {this.props.isOpenLocalFileDialog && <LocalFileDialog />}
+        {this.props.isOpenImportDialog && <ImportDialog />}
+        {this.props.isOpenOPDSDialog && <OPDSDialog />}
+        {this.props.isOpenSortShelfDialog && <SortShelfDialog />}
+        {this.props.isSettingOpen && <SettingDialog />}
+        {this.props.isDetailDialog && <DetailDialog />}
+        {(!books || books.length === 0) && this.state.totalBooks ? null : (
+          <Switch>
+            {routes.map((ele) => (
+              <Route
+                render={() => <ele.component />}
+                key={ele.path}
+                path={ele.path}
+              />
+            ))}
+          </Switch>
+        )}
+        <Footer />
+      </div>
+    );
+  }
+}
+export default Manager;

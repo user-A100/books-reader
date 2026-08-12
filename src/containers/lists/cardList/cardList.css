@@ -1,0 +1,215 @@
+.card-list-container-parent {
+  position: absolute;
+  top: 75px;
+  left: 200px;
+  width: calc(100% - 200px);
+  height: calc(100% - 75px);
+  overflow: hidden;
+}
+.card-list-container {
+  width: 100%;
+  height: calc(100% - 50px);
+  overflow-y: scroll;
+  display: flex;
+  flex-wrap: wrap;
+  overflow-y: scroll;
+  align-content: flex-start;
+  user-select: text;
+}
+
+.card-page-item-date {
+  /* float: left; */
+  position: absolute;
+  font-size: 18px;
+  line-height: 25px;
+  opacity: 0.75;
+  margin-left: 19px;
+  height: 20px;
+}
+.card-page-item {
+  /* display: block; */
+  width: 100%;
+
+  /* height: 400px; */
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  overflow-y: scroll;
+  align-content: flex-start;
+  /* font-size: 0px; */
+  /* clear: both; */
+  /* float: left; */
+  /* zoom: 1; */
+
+  overflow: hidden;
+  clear: both;
+}
+.card-list-item {
+  float: left;
+  /* display: inline-block; */
+  min-width: 330px;
+  cursor: pointer;
+  font-size: 15px;
+  width: calc(50vw - 135px);
+  height: 186px;
+  opacity: 1;
+  border: 15px solid transparent;
+  font-size: 15px;
+  line-height: 18px;
+  opacity: 1;
+  position: relative;
+  bottom: 10px;
+}
+.card-list-item-card {
+  height: 100%;
+  border-radius: 10px;
+}
+.card-list-item-chapter {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  height: 18px;
+  line-height: 18px;
+  font-size: 15px;
+  max-width: 130px;
+}
+.card-list-item-citation {
+  font-size: 15px;
+  position: absolute;
+  bottom: 35px;
+  right: 15px;
+  margin: 5px;
+  white-space: nowrap;
+  white-space: normal;
+  word-break: break-all;
+}
+.card-list-item-text-parent {
+  position: absolute;
+  width: 100%;
+  height: 122px;
+}
+.card-list-item-text-note {
+  position: absolute;
+  top: 110px;
+  width: 100%;
+  height: 104px;
+  opacity: 0.6;
+}
+.card-list-item-text {
+  width: calc(100% - 25px);
+  height: 55px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  margin: 14px 10px 0px 10px;
+  position: absolute;
+  cursor: text;
+  line-height: 18px;
+  font-size: 15px;
+  padding-right: 5px;
+}
+.card-list-item-note {
+  width: calc(100% - 25px);
+  height: calc(100% - 48px);
+  overflow-y: scroll;
+  margin: 38px 15px 0px 15px;
+  position: absolute;
+  cursor: text;
+  line-height: 18px;
+  font-size: 15px;
+  overflow-x: hidden;
+}
+::-webkit-scrollbar {
+  width: 5px;
+  height: 0.5rem;
+}
+
+::-webkit-scrollbar-track {
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 0;
+  transition: all 0.2s;
+  border-radius: 0.5rem;
+  opacity: 0.2;
+  border-left: solid 0.5rem transparent;
+  cursor: pointer;
+}
+.card-list-item-title {
+  float: left;
+  /* width: 100px; */
+}
+.card-list-container-box {
+  margin-top: 40px;
+  height: calc(100% - 89px);
+  width: 100%;
+}
+.icon-card-right {
+  margin-left: 5px;
+  line-height: 18px;
+  display: inline-block;
+  position: relative;
+  top: 2px;
+}
+.card-list-item-show-more-container {
+  position: absolute;
+  bottom: 10px;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  right: 20px;
+}
+.card-list-item-show-more {
+  font-size: 15px;
+  line-height: 18px;
+  opacity: 1;
+  text-align: center;
+  cursor: pointer;
+  padding: 0px 10px;
+}
+.card-list-show-more-icon {
+  /* display: block; */
+  font-size: 13px;
+  line-height: 18px;
+  opacity: 1;
+  text-align: center;
+  position: absolute;
+  bottom: 5px;
+  margin-left: calc(50% - 6px);
+}
+
+/* 分页加载相关样式 */
+.card-list-loading {
+  width: 100%;
+  text-align: center;
+  padding: 20px 0;
+  margin: 10px 0;
+}
+
+.loading-spinner {
+  display: inline-block;
+  padding: 12px 24px;
+  font-size: 14px;
+  color: #666;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+  opacity: 0.8;
+}
+
+.card-list-end {
+  width: 100%;
+  text-align: center;
+  padding: 20px 0;
+  margin: 10px 0;
+}
+
+.end-message {
+  display: inline-block;
+  padding: 12px 24px;
+  font-size: 14px;
+  color: #999;
+  border-top: 1px solid #e0e0e0;
+  opacity: 0.6;
+}

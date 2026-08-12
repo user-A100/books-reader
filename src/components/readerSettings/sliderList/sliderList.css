@@ -1,0 +1,59 @@
+.font-size-setting {
+  width: calc(100% - 44px);
+  margin: 0px 22px;
+}
+.font-size-title {
+  font-size: 15px;
+  line-height: 27px;
+  padding-bottom: 10px;
+  font-weight: 500;
+  margin-bottom: -5px;
+  margin-top: 10px;
+}
+.ultra-small-size {
+  float: left;
+  font-size: 15px;
+  line-height: 27px;
+  position: relative;
+}
+
+.ultra-large-size {
+  float: right;
+  font-size: 40px;
+  line-height: 28px;
+  position: relative;
+  text-align: left;
+}
+.font-size-selector {
+  width: 200px;
+  height: 28px;
+  margin-left: 0px !important;
+  position: relative;
+}
+
+.font-size-text {
+  width: 100%;
+  text-align: center;
+  margin-top: 8px;
+  float: left;
+  display: block;
+  font-size: 13px;
+}
+.font-size-demo {
+  text-align: center;
+  position: relative;
+  top: 10px;
+}
+.slide-icon {
+  font-size: 12px;
+  margin: 5px;
+  cursor: pointer;
+}
+.icon-add .slide-icon {
+  font-weight: 600 !important;
+}
+.input-value {
+  width: 50px;
+  height: 20px;
+  border-radius: 5px;
+}

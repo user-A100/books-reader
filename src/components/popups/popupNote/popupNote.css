@@ -1,0 +1,122 @@
+.note-editor {
+  width: calc(100% - 40px);
+  height: calc(100% - 140px);
+  padding: 20px;
+}
+.note-original-text {
+  border-left: solid 3px #109870;
+  padding-left: 10px;
+  margin-bottom: 20px;
+  margin-top: 5px;
+  line-height: 1.25;
+  text-align: left;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: 15px;
+}
+.editor-box-parent {
+  width: 100%;
+  height: calc(100% - 15px);
+}
+.editor-box {
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 15px;
+  width: calc(100% - 20px);
+  min-height: 120px;
+  line-height: 18px;
+  overflow-y: scroll;
+  background-color: rgba(16, 152, 112, 0.05);
+  border-radius: 7px;
+  padding: 10px;
+}
+
+.editor-box::placeholder {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 0.6;
+  position: relative;
+  top: 6px;
+  font-weight: 500;
+}
+.editor-box::-ms-input-placeholder {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 0.6;
+  position: relative;
+  top: 6px;
+  font-weight: 500;
+}
+.editor-box::-moz-placeholder {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 0.6;
+  position: relative;
+  top: 6px;
+  font-weight: 500;
+}
+.note-button-container {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  max-width: 100%;
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.confirm-button {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 1;
+  cursor: pointer;
+}
+.cancel-button {
+  font-size: 15px;
+  line-height: 15px;
+  opacity: 1;
+  cursor: pointer;
+  margin-right: 20px;
+}
+.note-tags-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 默认隐藏滚动条 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* 隐藏 WebKit 浏览器的滚动条 */
+.note-tags-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* 悬停时显示滚动条 */
+.note-tags-container:hover {
+  scrollbar-width: thin; /* Firefox */
+  -ms-overflow-style: auto; /* IE/Edge */
+}
+
+/* 悬停时显示 WebKit 浏览器的滚动条 */
+.note-tags-container:hover::-webkit-scrollbar {
+  display: block;
+  height: 8px;
+}
+
+.note-tags-container:hover::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.note-tags-container:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  height: 4px;
+}
+
+.note-tags-container:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}

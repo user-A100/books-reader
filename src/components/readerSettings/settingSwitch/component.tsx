@@ -1,0 +1,450 @@
+import React from "react";
+import { SettingSwitchProps, SettingSwitchState } from "./interface";
+import { Trans } from "react-i18next";
+import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
+import { readerSettingList } from "../../../constants/settingList";
+import { wordFrequencyList } from "../../../constants/dropdownList";
+import toast from "react-hot-toast";
+import { detectLocalLanguage } from "../../../utils/common";
+import BookUtil from "../../../utils/file/bookUtil";
+class SettingSwitch extends React.Component<
+  SettingSwitchProps,
+  SettingSwitchState
+> {
+  constructor(props: SettingSwitchProps) {
+    super(props);
+    this.state = {
+      isBold: ConfigService.getReaderConfig("isBold") === "yes",
+      isIndent: ConfigService.getReaderConfig("isIndent") === "yes",
+      isUnderline: ConfigService.getReaderConfig("isUnderline") === "yes",
+      isShadow: ConfigService.getReaderConfig("isShadow") === "yes",
+      isItalic: ConfigService.getReaderConfig("isItalic") === "yes",
+      isInvert: ConfigService.getReaderConfig("isInvert") === "yes",
+      isBionic: ConfigService.getReaderConfig("isBionic") === "yes",
+      isHyphenation: ConfigService.getReaderConfig("isHyphenation") === "yes",
+      isOrphanWidow: ConfigService.getReaderConfig("isOrphanWidow") === "yes",
+      isKeepPDFBackground:
+        ConfigService.getReaderConfig("isKeepPDFBackground") === "yes",
+      isAllowScript: ConfigService.getReaderConfig("isAllowScript") === "yes",
+      isStartFromEven:
+        ConfigService.getReaderConfig("isStartFromEven") === "yes",
+      isHideBackground:
+        ConfigService.getReaderConfig("isHideBackground") === "yes",
+      isHideFooter: ConfigService.getReaderConfig("isHideFooter") === "yes",
+      isHideHeader: ConfigService.getReaderConfig("isHideHeader") === "yes",
+      isShowPageBorder:
+        ConfigService.getReaderConfig("isShowPageBorder") === "yes",
+      isCustomBookCSS:
+        ConfigService.getReaderConfig("isCustomBookCSS") === "yes",
+      customBookCSS: ConfigService.getReaderConfig("customBookCSS") || "",
+      isWordDefinition: ConfigService.getAllListConfig(
+        "wordDefinitionBooks"
+      ).includes(props.currentBook?.key),
+      isSeperateStyle: ConfigService.getAllListConfig(
+        "seperateStyleBooks"
+      ).includes(props.currentBook?.key),
+      wordDefinitionLang: "",
+      currentChineseLevel:
+        ConfigService.getReaderConfig("currentChineseLevel") || "HSK3",
+      currentJapaneseLevel:
+        ConfigService.getReaderConfig("currentJapaneseLevel") || "N3",
+      currentEnglishLevel:
+        ConfigService.getReaderConfig("currentEnglishLevel") || "四级",
+    };
+  }
+  async UNSAFE_componentWillReceiveProps(nextProps: SettingSwitchProps) {
+    if (nextProps.currentBook?.key !== this.props.currentBook?.key) {
+      this.setState({
+        isWordDefinition: ConfigService.getAllListConfig(
+          "wordDefinitionBooks"
+        ).includes(nextProps.currentBook?.key),
+        isSeperateStyle: ConfigService.getAllListConfig(
+          "seperateStyleBooks"
+        ).includes(nextProps.currentBook?.key),
+      });
+    }
+    if (
+      nextProps.htmlBook !== this.props.htmlBook &&
+      nextProps.htmlBook &&
+      !this.props.htmlBook
+    ) {
+      nextProps.htmlBook.rendition.on("rendered", async () => {
+        let text = await nextProps.htmlBook?.rendition.audioText();
+        if (text && text.length > 0) {
+          const lang = detectLocalLanguage(text.slice(0, 500).join(" "));
+          this.setState({ wordDefinitionLang: lang });
+        }
+      });
+    }
+  }
+
+  _handleChange = (stateName: string) => {
+    this.setState({ [stateName]: !this.state[stateName] } as any, () => {
+      ConfigService.setReaderConfig(
+        stateName,
+        this.state[stateName] ? "yes" : "no"
+      );
+      toast(this.props.t("Change successful"));
+      setTimeout(async () => {
+        await this.props.renderBookFunc();
+      }, 500);
+    });
+  };
+
+  handleChange = (stateName: string) => {
+    this.setState({ [stateName]: !this.state[stateName] } as any);
+    ConfigService.setReaderConfig(
+      stateName,
+      this.state[stateName] ? "no" : "yes"
+    );
+
+    toast(this.props.t("Change successful"));
+  };
+  render() {
+    return (
+      <>
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <span
+            style={{
+              textDecoration: "underline",
+              cursor: "pointer",
+              textAlign: "center",
+            }}
+          >
+            <Trans>
+              The audiobook feature has been moved to the bottom right of the
+              book page
+            </Trans>
+          </span>
+        </div>
+        <div className="single-control-switch-container" key="isCustomBookCSS">
+          <span className="single-control-switch-title">
+            <Trans>Custom book style (CSS)</Trans>
+          </span>
+          <span
+            className="single-control-switch"
+            onClick={() => {
+              const next = !this.state.isCustomBookCSS;
+              this.setState({ isCustomBookCSS: next }, () => {
+                ConfigService.setReaderConfig(
+                  "isCustomBookCSS",
+                  next ? "yes" : "no"
+                );
+                if (!this.state.customBookCSS) {
+                  return;
+                }
+                toast(this.props.t("Change successful"));
+                setTimeout(async () => {
+                  await this.props.renderBookFunc();
+                }, 500);
+              });
+            }}
+            style={this.state.isCustomBookCSS ? {} : { opacity: 0.6 }}
+          >
+            <span
+              className="single-control-button"
+              style={
+                !this.state.isCustomBookCSS
+                  ? {
+                      transform: "translateX(0px)",
+                      transition: "transform 0.5s ease",
+                    }
+                  : {
+                      transform: "translateX(20px)",
+                      transition: "transform 0.5s ease",
+                    }
+              }
+            ></span>
+          </span>
+        </div>
+        {this.state.isCustomBookCSS && (
+          <div style={{ margin: "10px 20px" }}>
+            <textarea
+              className="token-dialog-token-box"
+              placeholder={
+                "/* " + this.props.t("Enter custom CSS here") + " */"
+              }
+              value={this.state.customBookCSS}
+              onChange={(e) => {
+                const val = e.target.value;
+                this.setState({ customBookCSS: val });
+              }}
+              onBlur={() => {
+                ConfigService.setReaderConfig(
+                  "customBookCSS",
+                  this.state.customBookCSS
+                );
+                toast(this.props.t("Change successful"));
+                setTimeout(async () => {
+                  await this.props.renderBookFunc();
+                }, 500);
+              }}
+            />
+          </div>
+        )}
+        <div className="single-control-switch-container" key="isSeperateStyle">
+          <span className="single-control-switch-title">
+            <Trans>Enable seperate style for this book</Trans>
+          </span>
+          <span
+            className="single-control-switch"
+            onClick={async () => {
+              const next = !this.state.isSeperateStyle;
+              if (next) {
+                ConfigService.setListConfig(
+                  this.props.currentBook.key,
+                  "seperateStyleBooks"
+                );
+                this.setState({
+                  isSeperateStyle: true,
+                });
+              } else {
+                ConfigService.deleteListConfig(
+                  this.props.currentBook.key,
+                  "seperateStyleBooks"
+                );
+                this.setState({
+                  isSeperateStyle: false,
+                });
+              }
+              toast(this.props.t("Change successful"));
+              this.props.handleBackgroundColor(
+                ConfigService.getReaderConfig("backgroundColor") || ""
+              );
+              this.props.renderBookFunc();
+            }}
+            style={this.state.isSeperateStyle ? {} : { opacity: 0.6 }}
+          >
+            <span
+              className="single-control-button"
+              style={
+                !this.state.isSeperateStyle
+                  ? {
+                      transform: "translateX(0px)",
+                      transition: "transform 0.5s ease",
+                    }
+                  : {
+                      transform: "translateX(20px)",
+                      transition: "transform 0.5s ease",
+                    }
+              }
+            ></span>
+          </span>
+        </div>
+        <div className="single-control-switch-container" key="isWordDefinition">
+          <span className="single-control-switch-title">
+            <Trans>Enable word definitions</Trans>
+          </span>
+          <span
+            className="single-control-switch"
+            onClick={async () => {
+              const next = !this.state.isWordDefinition;
+              if (next) {
+                if (!this.props.isAuthed) {
+                  toast(
+                    this.props.t("Please upgrade to Pro to use this feature")
+                  );
+                  this.props.handleSetting(true);
+                  this.props.handleSettingMode("account");
+                  ConfigService.setReaderConfig("fullTranslationMode", "no");
+                  return;
+                }
+                let lang = "";
+                if (this.props.htmlBook?.rendition) {
+                  try {
+                    const text =
+                      await this.props.htmlBook.rendition.audioText();
+                    if (text && text.length > 0) {
+                      lang = detectLocalLanguage(text.slice(0, 500).join(" "));
+                    }
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }
+                if (lang === "ko") {
+                  toast.error(
+                    this.props.t(
+                      "Unsupported language for word definition, currently only Chinese, Japanese and English are supported"
+                    )
+                  );
+                  return;
+                }
+                ConfigService.setListConfig(
+                  this.props.currentBook.key,
+                  "wordDefinitionBooks"
+                );
+
+                this.setState({
+                  isWordDefinition: true,
+                  wordDefinitionLang: lang,
+                });
+              } else {
+                ConfigService.deleteListConfig(
+                  this.props.currentBook.key,
+                  "wordDefinitionBooks"
+                );
+                this.setState({
+                  isWordDefinition: false,
+                  wordDefinitionLang: "",
+                });
+              }
+              toast(this.props.t("Change successful"));
+              setTimeout(async () => {
+                this.props.renderBookFunc();
+              }, 500);
+            }}
+            style={this.state.isWordDefinition ? {} : { opacity: 0.6 }}
+          >
+            <span
+              className="single-control-button"
+              style={
+                !this.state.isWordDefinition
+                  ? {
+                      transform: "translateX(0px)",
+                      transition: "transform 0.5s ease",
+                    }
+                  : {
+                      transform: "translateX(20px)",
+                      transition: "transform 0.5s ease",
+                    }
+              }
+            ></span>
+          </span>
+        </div>
+        <p
+          className="setting-option-subtitle"
+          style={{ marginLeft: "20px", marginRight: "20px" }}
+        >
+          <Trans>
+            {"Add definition next to the English, Chinese, Japanese words"}
+          </Trans>
+        </p>
+        {this.state.isWordDefinition &&
+          (this.state.wordDefinitionLang === "zh" ||
+            this.state.wordDefinitionLang === "ja" ||
+            this.state.wordDefinitionLang === "en") &&
+          (() => {
+            const langKey =
+              this.state.wordDefinitionLang === "zh"
+                ? "currentChineseLevel"
+                : this.state.wordDefinitionLang === "ja"
+                  ? "currentJapaneseLevel"
+                  : "currentEnglishLevel";
+            const levelItem = wordFrequencyList.find(
+              (item) => item.value === langKey
+            );
+            if (!levelItem) return null;
+            const stateKey = langKey as
+              | "currentChineseLevel"
+              | "currentJapaneseLevel"
+              | "currentEnglishLevel";
+            return (
+              <li
+                className="paragraph-character-container"
+                key={langKey}
+                style={{ margin: "0 20px" }}
+              >
+                <p className="general-setting-title">
+                  <Trans>{levelItem.title}</Trans>
+                </p>
+                <select
+                  className="general-setting-dropdown"
+                  value={this.state[stateKey]}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    this.setState({ [stateKey]: val } as any);
+                    ConfigService.setReaderConfig(langKey, val);
+                    toast(this.props.t("Change successful"));
+
+                    this.props.renderBookFunc();
+                  }}
+                >
+                  {levelItem.option.map((opt, idx) => (
+                    <option
+                      key={idx}
+                      value={opt.value}
+                      className="general-setting-option"
+                    >
+                      {this.props.t(opt.label)}
+                    </option>
+                  ))}
+                </select>
+              </li>
+            );
+          })()}
+        {readerSettingList
+          .filter((item) => {
+            if (
+              this.props.currentBook.format === "PDF" &&
+              !ConfigService.getAllListConfig("convertPDFBooks").includes(
+                this.props.currentBook.key
+              )
+            ) {
+              return item.isPDF;
+            }
+            return true;
+          })
+          .map((item) => (
+            <div className="single-control-switch-container" key={item.title}>
+              <span className="single-control-switch-title">
+                <Trans>{item.title}</Trans>
+              </span>
+
+              <span
+                className="single-control-switch"
+                onClick={async () => {
+                  const propName = item.propName as keyof SettingSwitchState;
+                  const renderProps: Partial<
+                    Record<keyof SettingSwitchState, (val: boolean) => void>
+                  > = {
+                    isHideFooter: this.props.handleHideFooter,
+                    isHideHeader: this.props.handleHideHeader,
+                    isHideBackground: this.props.handleHideBackground,
+                    isShowPageBorder: this.props.handleShowBorder,
+                  };
+
+                  if (propName === "isShowPageBorder") {
+                    this.props.handleShowBorder(!this.state.isShowPageBorder);
+                    if (!this.state.isShowPageBorder) {
+                      this.props.handleHideBackground(true);
+                      this.handleChange("isHideBackground");
+                    }
+
+                    this.handleChange("isShowPageBorder");
+                  } else if (propName === "isAllowScript") {
+                    this.handleChange(propName);
+                    setTimeout(() => {
+                      BookUtil.reloadBooks(this.props.currentBook);
+                    }, 500);
+                  } else if (propName in renderProps) {
+                    renderProps[propName]!(!this.state[propName]);
+                    this.handleChange(propName);
+                  } else {
+                    this._handleChange(propName);
+                  }
+                }}
+                style={this.state[item.propName] ? {} : { opacity: 0.6 }}
+              >
+                <span
+                  className="single-control-button"
+                  style={
+                    !this.state[item.propName]
+                      ? {
+                          transform: "translateX(0px)",
+                          transition: "transform 0.5s ease",
+                        }
+                      : {
+                          transform: "translateX(20px)",
+                          transition: "transform 0.5s ease",
+                        }
+                  }
+                ></span>
+              </span>
+            </div>
+          ))}
+      </>
+    );
+  }
+}
+
+export default SettingSwitch;
