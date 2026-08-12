@@ -4,7 +4,6 @@ import toast from "react-hot-toast";
 import { WeReadBook, WeReadChapter, WeReadSourceConfig } from "../../models/WeRead";
 import { getWeReadBook, getWeReadChapters, searchWeRead } from "../../services/onlineLibrary/weRead";
 import { getWeReadConfig, hasWeReadCredentials, saveWeReadConfig } from "../../services/onlineLibrary/weReadStorage";
-import { openInBrowser } from "../../utils/common";
 import "./weRead.css";
 
 interface WeReadProps {
@@ -60,8 +59,8 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
 
   openQrLogin = () => {
     const url = "https://weread.qq.com/";
-    openInBrowser(url);
-    toast("请在打开的微信读书官方网页中扫码登录。完成后如需 API 搜索，请切换到手动模式填写授权参数。");
+    window.location.hash = `/manager/web?url=${encodeURIComponent(url)}`;
+    toast("已在 Books 内嵌网页中打开微信读书，请在该页扫码登录。");
   };
 
   handleSearch = async (page = 1) => {
@@ -125,7 +124,7 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
         {this.state.loginMode === "qr" ? (
           <div className="weread-qr-login">
             <div className="weread-qr-mark"><span>微</span><i>⌁</i></div>
-            <div><strong>在微信读书官方网页扫码登录</strong><p>会在独立、安全的官方网页中完成登录；Books 不会读取或保存你的微信账号密码。</p><button onClick={this.openQrLogin}>打开扫码登录</button></div>
+            <div><strong>在 Books 内嵌网页中扫码登录</strong><p>登录状态会保存在本机的内嵌网页中；Books 不会读取或保存你的微信账号密码。</p><button onClick={this.openQrLogin}>打开扫码登录</button></div>
           </div>
         ) : (
           <>

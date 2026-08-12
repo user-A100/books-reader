@@ -72,6 +72,11 @@ class WebNavigator extends React.Component<
       this.resizeObserver.observe(this.viewportRef.current);
     }
     window.addEventListener("resize", this.syncViewportBounds);
+    const query = window.location.hash.split("?")[1] || "";
+    const requestedUrl = new URLSearchParams(query).get("url");
+    if (requestedUrl) {
+      requestAnimationFrame(() => this.openUrl(requestedUrl));
+    }
   }
 
   componentWillUnmount() {

@@ -28,15 +28,12 @@ if (fs.existsSync(pidFile)) {
   fs.unlinkSync(pidFile);
 }
 
-const command = process.platform === "win32" ? "npm.cmd" : "npm";
-const child = spawn(command, ["run", "dev"], {
+const runner = path.join(projectRoot, "scripts", "dev-runner.js");
+const child = spawn(process.execPath, [runner], {
   cwd: projectRoot,
   detached: true,
   stdio: "ignore",
   windowsHide: true,
-  // npm.cmd is a Windows command wrapper. Running it through the shell keeps
-  // the detached launch valid on current Node versions.
-  shell: process.platform === "win32",
 });
 
 child.unref();
