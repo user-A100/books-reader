@@ -14,6 +14,7 @@ import {
 } from "../../../assets/lib/kookit-extra-browser.min";
 import CoverUtil from "../../../utils/file/coverUtil";
 import {
+  OPEN_BOOK_SEARCH_EVENT,
   NAV_TAB_TOGGLE_EVENT,
   openReadingPanel,
   READING_PANEL_TOGGLE_EVENT,
@@ -139,10 +140,15 @@ class NavigationPanel extends React.Component<
   componentDidMount() {
     this.props.handleFetchBookmarks();
     window.addEventListener(NAV_TAB_TOGGLE_EVENT, this.handleNavTabToggle);
+    window.addEventListener(OPEN_BOOK_SEARCH_EVENT, this.handleOpenBookSearch);
   }
 
   componentWillUnmount() {
     window.removeEventListener(NAV_TAB_TOGGLE_EVENT, this.handleNavTabToggle);
+    window.removeEventListener(
+      OPEN_BOOK_SEARCH_EVENT,
+      this.handleOpenBookSearch
+    );
   }
 
   isLeftPanelOpen = () => {
@@ -172,6 +178,34 @@ class NavigationPanel extends React.Component<
       openReadingPanel("left");
     }
     this.handleChangeTab(tab);
+  };
+
+  handleOpenBookSearch = (event: Event) => {
+    const detail = (
+      event as CustomEvent<{ keyword?: string; submit?: boolean }>
+    ).detail;
+    if (!this.isLeftPanelOpen()) {
+      openReadingPanel("left");
+    }
+    this.props.handleSearch(true);
+    this.setState({ searchState: "focused" }, () => {
+      const searchBox = document.querySelector(
+        ".navigation-panel .header-search-box"
+      ) as HTMLInputElement | null;
+      if (!searchBox) return;
+      searchBox.focus();
+      if (!detail?.submit) return;
+      searchBox.value = detail.keyword || "";
+      searchBox.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+        } as KeyboardEventInit)
+      );
+    });
   };
 
   handleChangeTab = (currentTab: string) => {

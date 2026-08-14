@@ -45,4 +45,9 @@ export const sideMenu = [
     icon: "browser",
     mode: "web",
   },
+  {
+    name: "Community plugins",
+    icon: "plugin",
+    mode: "plugins",
+  },
 ];

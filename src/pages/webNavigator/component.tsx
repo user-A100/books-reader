@@ -433,8 +433,6 @@ class WebNavigator extends React.Component<
     return (
       <div className="web-navigator-home">
         <div className="web-navigator-intro">
-          <p><Trans>PERSONAL WEB DESK</Trans></p>
-          <h1><Trans>Your websites, one quiet shelf.</Trans></h1>
           <span>
             <Trans>Add the websites you use, then open them without leaving the reader.</Trans>
           </span>
@@ -493,8 +491,7 @@ class WebNavigator extends React.Component<
       <div className="web-navigator-page">
         <header className="web-navigator-header">
           <div>
-            <p><Trans>Web navigation</Trans></p>
-            <h2><Trans>Web Desk</Trans></h2>
+            <h2><Trans>Website Navigation</Trans></h2>
           </div>
           <div className="web-navigator-vault-note">
             <span><Trans>Books you download here are added to the current library.</Trans></span>

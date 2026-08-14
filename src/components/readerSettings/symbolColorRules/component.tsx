@@ -49,7 +49,7 @@ class SymbolColorRules extends React.Component<
 
   render() {
     return (
-      <section className="symbol-color-rules">
+      <section className="symbol-color-rules" data-search-key="symbolColoring">
         <div className="single-control-switch-container">
           <span className="single-control-switch-title">
             <Trans>Symbol coloring</Trans>

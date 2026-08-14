@@ -48,6 +48,7 @@ export interface ReaderState {
   scale: string;
   isShowScale: boolean;
   isNearEdge: boolean;
+  isSearchActive: boolean;
   totalDuration: number;
   currentDuration: number;
 }

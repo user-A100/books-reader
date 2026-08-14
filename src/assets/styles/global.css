@@ -10,6 +10,27 @@
 *:focus {
   outline: none;
 }
+
+/* Neutralise Chromium's autofill / selected-text highlight so focused fields
+   don't flash a pale-blue box that clashes with the app theme. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: currentColor;
+  -webkit-box-shadow: 0 0 0 1000px transparent inset;
+  caret-color: currentColor;
+  transition: background-color 9999s ease-in-out 0s;
+}
+::selection {
+  background: var(--color-hover, rgba(128, 128, 128, 0.18));
+  color: inherit;
+}
 .custom-confirm-width {
   width: 580px !important; /* 设置你需要的宽度 */
   max-width: 95% !important; /* 确保在移动端不会溢出 */

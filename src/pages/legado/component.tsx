@@ -5,7 +5,7 @@ import { Trans } from "react-i18next";
 import { RouteComponentProps } from "react-router-dom";
 import { ConfigService } from "../../assets/lib/kookit-extra-browser.min";
 import { applySymbolColoring, getDefaultSymbolColorRules, parseSymbolColorRules, SymbolColorRule } from "../../utils/reader/symbolColorUtil";
-import { LegadoBook, LegadoChapter, LegadoProgress, LegadoServerConfig } from "../../models/Legado";
+import { LegadoBook, LegadoCachedBook, LegadoChapter, LegadoProgress, LegadoServerConfig } from "../../models/Legado";
 import {
   getLegadoBookshelf,
   getLegadoChapters,
@@ -15,17 +15,21 @@ import {
   saveLegadoProgress,
 } from "../../services/legado/legadoClient";
 import {
+  getCachedLegadoBooks,
+  getCachedLegadoContent,
+  getCachedLegadoChapters,
   getLegadoServers,
   getLocalLegadoProgress,
+  removeCachedLegadoBook,
+  saveCachedLegadoBook,
+  saveCachedLegadoContent,
   saveLegadoServers,
   saveLocalLegadoProgress,
-  getCachedLegadoContent,
-  saveCachedLegadoContent,
 } from "../../services/legado/legadoStorage";
 import "./legado.css";
 
 interface Props extends RouteComponentProps {
-  t: (key: string) => string;
+  t: (key: string, options?: Record<string, unknown>) => string;
   handleMode: (mode: string) => void;
 }
 interface State {
@@ -49,6 +53,13 @@ interface State {
   symbolEnabled: boolean;
   symbolRules: SymbolColorRule[];
   highlightPalette: boolean;
+  cachePopup: boolean;
+  cacheCount: number;
+  caching: { label: string; done: number; total: number; lastError: string } | null;
+  view: "online" | "cached";
+  cachedBooks: LegadoCachedBook[];
+  offline: boolean;
+  offlineServerId: string;
 }
 
 const emptyServer = (): LegadoServerConfig => ({
@@ -117,6 +128,13 @@ class Legado extends React.Component<Props, State> {
       symbolEnabled: ConfigService.getReaderConfig("isSymbolColoring") === "yes",
       symbolRules: parseSymbolColorRules(ConfigService.getReaderConfig("symbolColorRules")),
       highlightPalette: false,
+      cachePopup: false,
+      cacheCount: 10,
+      caching: null,
+      view: "online",
+      cachedBooks: getCachedLegadoBooks(),
+      offline: false,
+      offlineServerId: "",
     };
   })();
 
@@ -167,6 +185,8 @@ class Legado extends React.Component<Props, State> {
         selectedChapter: null,
         content: "",
         error: "",
+        offline: false,
+        offlineServerId: "",
       });
       return;
     }
@@ -287,12 +307,183 @@ class Legado extends React.Component<Props, State> {
     await this.writeProgress(book, chapter, chapterPos);
   };
 
+  // Offline chapter load: reads only from the local cache, never the phone.
+  // Used when a cached book is opened from the "已缓存" library, so it works
+  // without a server connection. Uncached chapters render as a placeholder.
+  loadCachedChapter = async (book: LegadoBook, chapter: LegadoChapter, chapterPos = 0) => {
+    const serverId = this.state.offlineServerId;
+    if (!serverId) return;
+    this.setState({ loading: true });
+    try {
+      const content = getCachedLegadoContent(serverId, book.bookUrl, chapter.index);
+      this.setState({ selectedChapter: chapter, content }, () => {
+        const reader = this.readerRef.current;
+        if (reader) {
+          const ratio = content.length > 0 ? Math.min(1, chapterPos / content.length) : 0;
+          reader.scrollTop = ratio * Math.max(0, reader.scrollHeight - reader.clientHeight);
+        }
+      });
+      if (content) {
+        const progress: LegadoProgress = {
+          chapterIndex: chapter.index,
+          chapterPos: Math.max(0, Math.round(chapterPos)),
+          chapterTitle: chapter.title,
+          updateTime: Date.now(),
+        };
+        saveLocalLegadoProgress(serverId, book.bookUrl, progress);
+      }
+    } finally {
+      this.setState({ loading: false });
+    }
+  };
+
+  openCachedBook = (record: LegadoCachedBook) => {
+    this.persistCurrentProgress();
+    const chapters = record.chapters;
+    const local = getLocalLegadoProgress(record.serverId, record.bookUrl);
+    const chapter = chapters.find((item) => item.index === local?.chapterIndex) || chapters[0] || null;
+    this.setState({
+      selectedBook: record,
+      chapters,
+      selectedChapter: null,
+      content: "",
+      offline: true,
+      offlineServerId: record.serverId,
+      highlightPalette: false,
+    });
+    if (chapter) this.loadCachedChapter(record, chapter, local?.chapterPos || 0);
+  };
+
+  removeCachedBook = (record: LegadoCachedBook) => {
+    if (!window.confirm(`${this.props.t("Delete")} “${record.name}”?`)) return;
+    const cachedBooks = removeCachedLegadoBook(record.serverId, record.bookUrl);
+    this.setState({ cachedBooks });
+    toast.success(this.props.t("Done"));
+  };
+
   cacheCurrentChapter = async () => {
     const { selectedBook: book, selectedChapter: chapter, content } = this.state;
     const server = this.selectedServer;
     if (!server || !book || !chapter || !content) return;
     saveCachedLegadoContent(server.id, book.bookUrl, chapter.index, content);
-    toast.success("本章内容已缓存");
+    this.upsertCachedBookRecord();
+    toast.success(this.props.t("Cached current chapter"));
+    this.setState({ cachePopup: false });
+  };
+
+  // Fetches and stores chapter contents sequentially. Skips chapters that are
+  // already cached so re-running "cache all" only fills the gaps. A separate
+  // `caching` state tracks progress without hijacking the reader's `loading`
+  // flag (which would blank out the current chapter with the loading spinner).
+  //
+  // Legado's Android web service triggers a book-source load per uncached
+  // chapter; firing these back-to-back overwhelms the source (or Legado's own
+  // source-load thread pool), which is why only the first few chapters succeed
+  // and the rest time out / return isSuccess:false. We throttle with a small
+  // inter-request delay and retry once with backoff to ride out the queue.
+  cacheChapters = async (
+    chapters: LegadoChapter[],
+    label: string
+  ): Promise<{ total: number; failed: number; lastError: string }> => {
+    const { selectedBook: book } = this.state;
+    const server = this.selectedServer;
+    if (!server || !book) return { total: 0, failed: 0, lastError: "" };
+    const total = chapters.length;
+    let done = 0;
+    let failed = 0;
+    let lastError = "";
+    const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+    this.setState({ caching: { label, done, total, lastError } });
+    for (const chapter of chapters) {
+      try {
+        const existing = getCachedLegadoContent(server.id, book.bookUrl, chapter.index);
+        if (!existing) {
+          let fetched: string | null = null;
+          let attemptError = "";
+          for (let attempt = 0; attempt < 2 && !fetched; attempt++) {
+            try {
+              if (attempt > 0) await delay(1200 * attempt);
+              fetched = await getLegadoContent(server, book, chapter.index);
+            } catch (error) {
+              attemptError = error instanceof Error ? error.message : String(error);
+            }
+          }
+          if (!fetched) {
+            lastError = attemptError;
+            throw new Error(attemptError);
+          }
+          saveCachedLegadoContent(server.id, book.bookUrl, chapter.index, fetched);
+        }
+      } catch (error) {
+        failed++;
+        lastError = error instanceof Error ? error.message : String(error);
+      }
+      done++;
+      this.setState({ caching: { label, done, total, lastError } });
+      await delay(400);
+    }
+    return { total, failed, lastError };
+  };
+
+  // Upsert a book into the offline cached-books index: stores metadata +
+  // full chapter list (TOC) so the book can be browsed without the phone.
+  upsertCachedBookRecord = () => {
+    const { selectedBook: book, chapters } = this.state;
+    const server = this.selectedServer;
+    if (!server || !book || !chapters.length) return;
+    let cachedCount = 0;
+    for (const chapter of chapters) {
+      if (getCachedLegadoContent(server.id, book.bookUrl, chapter.index)) cachedCount++;
+    }
+    const record: LegadoCachedBook = {
+      ...book,
+      serverId: server.id,
+      serverName: server.name,
+      chapters: chapters.map((chapter) => ({ index: chapter.index, title: chapter.title, url: chapter.url })),
+      cachedAt: Date.now(),
+      cachedCount,
+    };
+    const cachedBooks = saveCachedLegadoBook(record);
+    this.setState({ cachedBooks });
+  };
+
+  reportCacheResult = (result: { total: number; failed: number; lastError: string }) => {
+    const { total, failed, lastError } = result;
+    if (total === 0) return;
+    if (failed === 0) {
+      toast.success(this.props.t("Cached N chapters", { count: total }));
+    } else {
+      toast.error(
+        `${this.props.t("Cached chapters with failures", { done: total - failed, total, failed })}${lastError ? ` · ${lastError}` : ""}`,
+        { duration: 6000 }
+      );
+    }
+  };
+
+  cacheAll = async () => {
+    const { chapters } = this.state;
+    if (!chapters.length) return;
+    const result = await this.cacheChapters(chapters, this.props.t("Cache all"));
+    this.setState({ caching: null });
+    this.upsertCachedBookRecord();
+    if (result.total > 0 && result.failed === 0) {
+      toast.success(this.props.t("Cached all chapters", { total: result.total }));
+    } else {
+      this.reportCacheResult(result);
+    }
+  };
+
+  cacheCustom = async () => {
+    const { chapters, selectedChapter, cacheCount } = this.state;
+    if (!selectedChapter) return;
+    const start = chapters.findIndex((item) => item.index === selectedChapter.index);
+    if (start < 0) return;
+    const count = Math.max(1, Math.min(cacheCount || 1, chapters.length - start));
+    const slice = chapters.slice(start, start + count);
+    const result = await this.cacheChapters(slice, this.props.t("Cache next chapters"));
+    this.setState({ caching: null });
+    this.upsertCachedBookRecord();
+    this.reportCacheResult(result);
   };
 
   toggleFullscreen = async () => {
@@ -354,18 +545,29 @@ class Legado extends React.Component<Props, State> {
   openChapter = (chapter: LegadoChapter) => {
     const book = this.state.selectedBook;
     if (!book) return;
+    if (this.state.offline) {
+      this.persistCurrentProgress();
+      this.loadCachedChapter(book, chapter);
+      return;
+    }
     this.run(() => this.loadChapter(book, chapter));
   };
 
   writeProgress = async (book: LegadoBook, chapter: LegadoChapter, chapterPos: number) => {
-    const server = this.selectedServer;
-    if (!server) return;
     const progress: LegadoProgress = {
       chapterIndex: chapter.index,
       chapterPos: Math.max(0, Math.round(chapterPos)),
       chapterTitle: chapter.title,
       updateTime: Date.now(),
     };
+    // Offline: only persist locally, never push to the phone.
+    if (this.state.offline) {
+      const serverId = this.state.offlineServerId;
+      if (serverId) saveLocalLegadoProgress(serverId, book.bookUrl, progress);
+      return;
+    }
+    const server = this.selectedServer;
+    if (!server) return;
     saveLocalLegadoProgress(server.id, book.bookUrl, progress);
     await saveLegadoProgress(server, book, progress);
   };
@@ -392,7 +594,7 @@ class Legado extends React.Component<Props, State> {
     return (
       <div className="legado-modal" role="dialog" aria-modal="true">
         <section className="legado-config-card">
-          <header><div><small>LEGADO SERVICE</small><h2><Trans>Add Legado server</Trans></h2></div>{this.state.servers.length > 0 && <button className="legado-icon" onClick={() => this.setState({ editing: false })}>×</button>}</header>
+          <header><div><h2><Trans>Add Legado server</Trans></h2></div>{this.state.servers.length > 0 && <button className="legado-icon" onClick={() => this.setState({ editing: false })}>×</button>}</header>
           <label><span><Trans>Name</Trans></span><input value={draft.name} onChange={(event) => this.setState({ draft: { ...draft, name: event.target.value } })} /></label>
           <label><span><Trans>Server type</Trans></span><select value={draft.serverType} onChange={(event) => this.setState({ draft: { ...draft, serverType: event.target.value as "android" | "reader" } })}><option value="android">开源阅读（Android）</option><option value="reader">Reader 服务端</option></select></label>
           <label><span><Trans>Server address</Trans></span><input value={draft.baseUrl} onChange={(event) => this.setState({ draft: { ...draft, baseUrl: event.target.value } })} placeholder="http://192.168.1.100:1122" /></label>
@@ -404,14 +606,72 @@ class Legado extends React.Component<Props, State> {
     );
   }
 
-  renderColorPanel() {
+  renderCachePanel() {
+    const { caching, chapters, selectedChapter, cacheCount } = this.state;
+    const total = chapters.length;
+    const start = selectedChapter
+      ? chapters.findIndex((item) => item.index === selectedChapter.index)
+      : -1;
+    const maxForward = start >= 0 ? chapters.length - start : 0;
+    const busy = !!caching;
+    const pct = caching && caching.total > 0 ? Math.round((caching.done / caching.total) * 100) : 0;
     return (
+      <div className="legado-popover-root">
+        <div className="legado-popover-backdrop" onClick={() => { if (!busy) this.setState({ cachePopup: false }); }} />
+        <div className="legado-color-card" role="dialog" aria-modal="true">
+          <header>
+            <div><h2><Trans>Cache chapters</Trans></h2></div>
+            <button className="legado-icon" disabled={busy} onClick={() => this.setState({ cachePopup: false })}>×</button>
+          </header>
+          <div className="legado-cache-list">
+            <button className="legado-cache-item" disabled={busy || total === 0} onClick={this.cacheAll}>
+              <span><Trans>Cache all</Trans></span>
+              <small>{total}</small>
+            </button>
+            <button className="legado-cache-item" disabled={busy} onClick={this.cacheCurrentChapter}>
+              <span><Trans>Cache current chapter</Trans></span>
+            </button>
+            <div className="legado-cache-custom">
+              <span><Trans>Cache next chapters</Trans></span>
+              <div className="legado-cache-custom-row">
+                <input
+                  type="number"
+                  min={1}
+                  max={Math.max(1, maxForward)}
+                  value={cacheCount}
+                  disabled={busy}
+                  onChange={(event) => this.setState({ cacheCount: Math.max(1, Number(event.target.value) || 1) })}
+                />
+                <button
+                  className="primary"
+                  disabled={busy || maxForward <= 0}
+                  onClick={this.cacheCustom}
+                ><Trans>Cache</Trans></button>
+              </div>
+              <p><Trans>Cache forward from the current chapter</Trans></p>
+            </div>
+          </div>
+          {caching && (
+            <div className="legado-cache-progress">
+              <div className="legado-cache-progress-row">
+                <span>{caching.label}</span>
+                <em>{caching.done}/{caching.total}</em>
+              </div>
+              <i><em style={{ width: `${pct}%` }} /></i>
+              {caching.lastError && <p className="legado-cache-error">{caching.lastError}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  renderColorPanel() {    return (
       <div className="legado-popover-root">
         <div className="legado-popover-backdrop" onClick={this.togglePalette} />
         <div className="legado-color-card" role="dialog" aria-modal="true">
           <header>
             <div>
-              <small>READER</small>
               <h2><Trans>Symbol coloring</Trans></h2>
             </div>
             <button className="legado-icon" onClick={this.togglePalette}>×</button>
@@ -486,36 +746,59 @@ class Legado extends React.Component<Props, State> {
     if (!book || !chapter) return null;
     return (
       <div className={`legado-reader ${this.state.sepia ? "legado-sepia" : ""} ${this.state.tocCollapsed ? "legado-toc-collapsed" : ""}`}>
-        <header><button onClick={() => { this.persistCurrentProgress(); this.setState({ selectedBook: null, selectedChapter: null, content: "" }); }}>← <Trans>Back to bookshelf</Trans></button><div><strong>{book.name}</strong><small>{chapter.title}</small></div><button onClick={() => this.moveChapter(-1)} disabled={this.state.loading}>‹</button><button onClick={() => this.moveChapter(1)} disabled={this.state.loading}>›</button><button onClick={this.cacheCurrentChapter} title="缓存本章">⇩</button><button className="legado-tool-highlight" onClick={this.togglePalette} title={this.props.t("Symbol coloring")} aria-label={this.props.t("Symbol coloring")}><svg className="legado-tool-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h9l3-3" /><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" /></svg></button><button onClick={() => this.setState({ fontSize: Math.max(12, this.state.fontSize - 1) })}>A−</button><button onClick={() => this.setState({ fontSize: Math.min(30, this.state.fontSize + 1) })}>A＋</button><button onClick={() => this.setState({ sepia: !this.state.sepia })}>◐</button><button onClick={this.toggleFullscreen} title="全屏阅读">⛶</button></header>
+        <header><button onClick={() => { this.persistCurrentProgress(); this.setState({ selectedBook: null, selectedChapter: null, content: "", offline: false, offlineServerId: "" }); }}>← <Trans>Back to bookshelf</Trans></button><div><strong>{book.name}</strong><small>{chapter.title}</small></div><button onClick={() => this.moveChapter(-1)} disabled={this.state.loading}>‹</button><button onClick={() => this.moveChapter(1)} disabled={this.state.loading}>›</button>{!this.state.offline && <button onClick={() => this.setState({ cachePopup: true })} title={this.props.t("Cache chapters")}>⇩</button>}<button className="legado-tool-highlight" onClick={this.togglePalette} title={this.props.t("Symbol coloring")} aria-label={this.props.t("Symbol coloring")}><svg className="legado-tool-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 11-6 6v3h9l3-3" /><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" /></svg></button><button onClick={() => this.setState({ fontSize: Math.max(12, this.state.fontSize - 1) })}>A−</button><button onClick={() => this.setState({ fontSize: Math.min(30, this.state.fontSize + 1) })}>A＋</button><button onClick={() => this.setState({ sepia: !this.state.sepia })}>◐</button><button onClick={this.toggleFullscreen} title="全屏阅读">⛶</button></header>
         <div className="legado-reader-body">
           <aside>{this.state.chapters.map((item) => <button className={item.index === chapter.index ? "active" : ""} key={`${item.index}-${item.url}`} onClick={() => this.openChapter(item)}><span>{item.index + 1}</span>{item.title}</button>)}<button className="legado-toc-toggle" onClick={() => this.setState({ tocCollapsed: !this.state.tocCollapsed })} title={this.state.tocCollapsed ? "展开目录" : "收起目录"}>{this.state.tocCollapsed ? "›" : "‹"}</button></aside>
           <article ref={this.readerRef}>
-            {this.state.loading ? <div className="legado-loading"><i /><Trans>Loading chapter...</Trans></div> : <div className="legado-prose" style={{ fontSize: this.state.fontSize, lineHeight: this.state.lineHeight, maxWidth: this.state.contentWidth }} dangerouslySetInnerHTML={{ __html: renderContent(this.state.content, chapter.title) }} />}
+            {this.state.loading ? <div className="legado-loading"><i /><Trans>Loading chapter...</Trans></div> : this.state.content ? <div className="legado-prose" style={{ fontSize: this.state.fontSize, lineHeight: this.state.lineHeight, maxWidth: this.state.contentWidth }} dangerouslySetInnerHTML={{ __html: renderContent(this.state.content, chapter.title) }} /> : <div className="legado-empty"><span>阅</span><h3><Trans>This chapter is not cached</Trans></h3><p><Trans>Open the book while connected and cache it, then read offline.</Trans></p></div>}
           </article>
         </div>
         {this.state.highlightPalette && this.renderColorPanel()}
+        {this.state.cachePopup && this.renderCachePanel()}
       </div>
     );
   }
 
   render() {
     if (this.state.selectedBook && this.state.selectedChapter) return this.renderReader();
+    const { view, cachedBooks } = this.state;
     const filter = this.state.filter.trim().toLowerCase();
-    const books = this.state.books.filter((book) => !filter || `${book.name} ${book.author}`.toLowerCase().includes(filter));
+    const onlineBooks = this.state.books.filter((book) => !filter || `${book.name} ${book.author}`.toLowerCase().includes(filter));
+    const offlineBooks = cachedBooks.filter((book) => !filter || `${book.name} ${book.author}`.toLowerCase().includes(filter));
+    const isCached = view === "cached";
     return (
       <div className="legado-page">
         <aside className="legado-sources">
-          <header><div><small>REMOTE SHELVES</small><h2>Legado</h2></div><button className="legado-icon" onClick={() => this.setState({ draft: emptyServer(), editing: true })}>＋</button></header>
+          <header><div><h2><Trans>Legado</Trans></h2></div><button className="legado-icon" onClick={() => this.setState({ draft: emptyServer(), editing: true })}>＋</button></header>
           {this.state.servers.map((server) => <button key={server.id} className={`legado-server ${server.id === this.state.selectedServerId ? "active" : ""}`} onClick={() => this.selectServer(server)}><span>阅</span><div><strong>{server.name}</strong><small>{server.serverType === "android" ? "Android · LAN" : "Reader · Remote"}</small></div><i onClick={(event) => { event.stopPropagation(); this.setState({ draft: { ...server }, editing: true }); }}>•••</i></button>)}
           {this.selectedServer && <button className="legado-delete" onClick={() => this.deleteServer(this.selectedServer!)}><Trans>Delete server</Trans></button>}
         </aside>
         <main className="legado-library">
-          <header className="legado-hero"><div><small>LEGADO WEB</small><h1>{this.selectedServer?.name || this.props.t("Legado bookshelf")}</h1><p><Trans>Read the books on your phone and sync chapter progress in both directions.</Trans></p></div><button onClick={this.loadBookshelf} disabled={!this.selectedServer || this.state.loading}>↻ <Trans>Refresh bookshelf</Trans></button></header>
-          <div className="legado-search"><span>⌕</span><input value={this.state.filter} onChange={(event) => this.setState({ filter: event.target.value })} placeholder={this.props.t("Search title or author")} /><em>{books.length}</em></div>
+          <header className="legado-hero"><div><h1>{isCached ? this.props.t("Cached books") : (this.selectedServer?.name || this.props.t("Legado bookshelf"))}</h1><p><Trans>Read the books on your phone and sync chapter progress in both directions.</Trans></p></div>{!isCached && <button onClick={this.loadBookshelf} disabled={!this.selectedServer || this.state.loading}>↻ <Trans>Refresh bookshelf</Trans></button>}</header>
+          <div className="legado-tabs">
+            <button className={!isCached ? "active" : ""} onClick={() => this.setState({ view: "online" })}><Trans>Legado bookshelf</Trans></button>
+            <button className={isCached ? "active" : ""} onClick={() => this.setState({ view: "cached", cachedBooks: getCachedLegadoBooks() })}><Trans>Cached books</Trans> <em>{cachedBooks.length}</em></button>
+          </div>
+          <div className="legado-search"><span>⌕</span><input value={this.state.filter} onChange={(event) => this.setState({ filter: event.target.value })} placeholder={this.props.t("Search title or author")} /><em>{isCached ? offlineBooks.length : onlineBooks.length}</em></div>
           {this.state.error && <pre className="legado-error">{this.state.error}</pre>}
-          {this.state.loading && !this.state.selectedBook && <div className="legado-loading"><i /><Trans>Connecting to Legado...</Trans></div>}
-          {!this.state.loading && this.selectedServer && books.length === 0 && !this.state.error && <div className="legado-empty"><span>阅</span><h3><Trans>No books returned</Trans></h3><p><Trans>Make sure the phone Web service is running, then refresh the bookshelf.</Trans></p></div>}
-          <section className="legado-book-grid">{books.map((book) => <button key={book.bookUrl} className="legado-book" onClick={() => this.openBook(book)}><div className="legado-cover">{book.coverUrl && this.selectedServer ? <img src={getLegadoCoverUrl(this.selectedServer, book.coverUrl)} alt="" /> : <span>书</span>}<em>{book.durChapterIndex > 0 ? `${book.durChapterIndex + 1}` : "NEW"}</em></div><strong>{book.name}</strong><small>{book.author || this.props.t("Unknown author")}</small><p>{book.durChapterTitle || book.latestChapterTitle || book.originName}</p></button>)}</section>
+          {!isCached && this.state.loading && !this.state.selectedBook && <div className="legado-loading"><i /><Trans>Connecting to Legado...</Trans></div>}
+          {!isCached && !this.state.loading && this.selectedServer && onlineBooks.length === 0 && !this.state.error && <div className="legado-empty"><span>阅</span><h3><Trans>No books returned</Trans></h3><p><Trans>Make sure the phone Web service is running, then refresh the bookshelf.</Trans></p></div>}
+          {isCached && offlineBooks.length === 0 && <div className="legado-empty"><span>阅</span><h3><Trans>No cached books</Trans></h3><p><Trans>Open a book while connected and cache it, then read it here offline.</Trans></p></div>}
+          <section className="legado-book-grid">
+            {isCached
+              ? offlineBooks.map((book) => (
+                  <div key={`${book.serverId}:${book.bookUrl}`} className="legado-book legado-book-cached">
+                    <button className="legado-book-open" onClick={() => this.openCachedBook(book)}>
+                      <div className="legado-cover"><span>书</span><em>{book.cachedCount}/{book.chapters.length}</em></div>
+                      <strong>{book.name}</strong>
+                      <small>{book.author || this.props.t("Unknown author")}</small>
+                      <p>{book.serverName}</p>
+                    </button>
+                    <button className="legado-book-remove" title={this.props.t("Delete")} onClick={() => this.removeCachedBook(book)}>×</button>
+                  </div>
+                ))
+              : onlineBooks.map((book) => <button key={book.bookUrl} className="legado-book" onClick={() => this.openBook(book)}><div className="legado-cover">{book.coverUrl && this.selectedServer ? <img src={getLegadoCoverUrl(this.selectedServer, book.coverUrl)} alt="" /> : <span>书</span>}<em>{book.durChapterIndex > 0 ? `${book.durChapterIndex + 1}` : "NEW"}</em></div><strong>{book.name}</strong><small>{book.author || this.props.t("Unknown author")}</small><p>{book.durChapterTitle || book.latestChapterTitle || book.originName}</p></button>)}
+          </section>
         </main>
         {this.state.editing && this.renderConfig()}
       </div>

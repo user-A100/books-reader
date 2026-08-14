@@ -117,7 +117,7 @@ class SettingSwitch extends React.Component<
             </Trans>
           </span>
         </div>
-        <div className="single-control-switch-container" key="isCustomBookCSS">
+        <div className="single-control-switch-container" key="isCustomBookCSS" data-search-key="isCustomBookCSS">
           <span className="single-control-switch-title">
             <Trans>Custom book style (CSS)</Trans>
           </span>
@@ -182,7 +182,7 @@ class SettingSwitch extends React.Component<
             />
           </div>
         )}
-        <div className="single-control-switch-container" key="isSeperateStyle">
+        <div className="single-control-switch-container" key="isSeperateStyle" data-search-key="isSeperateStyle">
           <span className="single-control-switch-title">
             <Trans>Enable seperate style for this book</Trans>
           </span>
@@ -231,7 +231,7 @@ class SettingSwitch extends React.Component<
             ></span>
           </span>
         </div>
-        <div className="single-control-switch-container" key="isWordDefinition">
+        <div className="single-control-switch-container" key="isWordDefinition" data-search-key="isWordDefinition">
           <span className="single-control-switch-title">
             <Trans>Enable word definitions</Trans>
           </span>
@@ -385,7 +385,7 @@ class SettingSwitch extends React.Component<
             return true;
           })
           .map((item) => (
-            <div className="single-control-switch-container" key={item.title}>
+            <div className="single-control-switch-container" key={item.title} data-search-key={item.propName}>
               <span className="single-control-switch-title">
                 <Trans>{item.title}</Trans>
               </span>

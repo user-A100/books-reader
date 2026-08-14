@@ -35,3 +35,43 @@ export interface WeReadChapter {
   isPaid: boolean;
   isVip: boolean;
 }
+
+export interface WeReadShelfItem {
+  bookId: string;
+  bookKey: string;
+  title: string;
+  author: string;
+  coverUrl: string;
+  category: string;
+  progress: number;
+  readingTime: number;
+  syncedAt: number;
+}
+
+export interface WeReadBookmark {
+  bookmarkId: string;
+  bookId: string;
+  chapterUid: number;
+  chapterName: string;
+  text: string;
+  content: string;
+  style: number;
+  colorStyle: number;
+  createTime: number;
+}
+
+export interface WeReadNotebook {
+  bookId: string;
+  noteCount: number;
+  readingTime: number;
+}
+
+export interface WeReadSyncResult {
+  shelfCount: number;
+  bookmarkCount: number;
+  notebookCount: number;
+  importedNotes: number;
+  skippedNotes: number;
+  errors: string[];
+  syncedAt: number;
+}

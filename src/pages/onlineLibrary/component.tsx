@@ -229,9 +229,7 @@ class OnlineLibrary extends React.Component<
   renderLanding() {
     return (
       <main className="online-library-landing">
-        <div className="online-library-mark" aria-label="Open Shelf">
-          <span>open</span>shelf<i>.</i>
-        </div>
+        <h1><Trans>Online Library</Trans></h1>
         <p>
           <Trans>Public-domain books, ready for your Koodo bookshelf.</Trans>
         </p>
@@ -250,7 +248,6 @@ class OnlineLibrary extends React.Component<
         <section className="online-library-source-dock">
           <header>
             <div>
-              <p><Trans>Source center</Trans></p>
               <strong><Trans>Choose where a book comes from</Trans></strong>
             </div>
             <button onClick={this.refreshSourceRegistry} title={this.props.t("Refresh")}>
@@ -319,7 +316,7 @@ class OnlineLibrary extends React.Component<
           )}
         </section>
         <footer>
-          <strong>PROJECT GUTENBERG</strong>
+          <strong><Trans>Project Gutenberg</Trans></strong>
           <span>
             <Trans>Open catalog · EPUB · added locally after download</Trans>
           </span>
@@ -339,9 +336,7 @@ class OnlineLibrary extends React.Component<
           >
             ←
           </button>
-          <div className="online-library-mini-mark">
-            <span>open</span>shelf<i>.</i>
-          </div>
+          <h2><Trans>Online Library</Trans></h2>
           {this.renderSearchBox(true)}
         </header>
         <div className="online-library-results-heading">

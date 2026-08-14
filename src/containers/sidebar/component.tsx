@@ -13,6 +13,27 @@ import {
   moveBooksToTrash,
   parseBookDragData,
 } from "../../utils/reader/bookDrag";
+import FolderLibrary from "../../components/folderLibrary";
+
+// Inline puzzle-piece icon for the Community plugins entry. The icon font
+// has no puzzle glyph; this SVG keeps the stroke/round-join weight of the
+// existing icomoon line icons so the row stays visually consistent.
+const PluginIconSvg = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M9 4.5a1.5 1.5 0 0 0-3 0V6H4.5A1.5 1.5 0 0 0 3 7.5V11h1.75a1.75 1.75 0 0 1 0 3.5H3v3.5A1.5 1.5 0 0 0 4.5 19.5H8v-1.75a1.75 1.75 0 0 1 3.5 0v1.75h3.5A1.5 1.5 0 0 0 16.5 18v-3h1.75a1.75 1.75 0 0 0 0-3.5h-1.75V7.5A1.5 1.5 0 0 0 15 6h-3V4.5Z" />
+  </svg>
+);
+
 class Sidebar extends React.Component<SidebarProps, SidebarState> {
   private newShelfInput = React.createRef<HTMLInputElement>();
   constructor(props: SidebarProps) {
@@ -187,6 +208,20 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
   isBookDropTarget = (mode: string) =>
     mode === "favorite" || mode === "trash";
   render() {
+    const logoSource =
+      ConfigService.getReaderConfig("appSkin") === "night" ||
+      (ConfigService.getReaderConfig("appSkin") === "system" &&
+        ConfigService.getReaderConfig("isOSNight") === "yes")
+        ? require(
+            `../../assets/images/logo-dark${
+              this.props.isAuthed ? "-pro" : ""
+            }.png`
+          )
+        : require(
+            `../../assets/images/logo-light${
+              this.props.isAuthed ? "-pro" : ""
+            }.png`
+          );
     const renderSideMenu = () => {
       return sideMenu.map((item) => {
         const isDropTarget = this.isBookDropTarget(item.mode);
@@ -238,18 +273,31 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
                 className="side-menu-icon"
                 style={this.props.isCollapsed ? {} : { marginLeft: "38px" }}
               >
-                <span
-                  className={
-                    this.props.mode === item.mode
-                      ? `icon-${item.icon}  active-icon`
-                      : `icon-${item.icon}`
-                  }
-                  style={
-                    this.props.isCollapsed
-                      ? { position: "relative", marginLeft: "-9px" }
-                      : {}
-                  }
-                ></span>
+                {item.icon === "plugin" ? (
+                  <span
+                    className={`side-menu-svg${this.props.mode === item.mode ? " active-icon" : ""}`}
+                    style={
+                      this.props.isCollapsed
+                        ? { position: "relative", marginLeft: "-9px" }
+                        : {}
+                    }
+                  >
+                    <PluginIconSvg />
+                  </span>
+                ) : (
+                  <span
+                    className={
+                      this.props.mode === item.mode
+                        ? `icon-${item.icon}  active-icon`
+                        : `icon-${item.icon}`
+                    }
+                    style={
+                      this.props.isCollapsed
+                        ? { position: "relative", marginLeft: "-9px" }
+                        : {}
+                    }
+                  ></span>
+                )}
               </div>
 
               <span
@@ -372,35 +420,24 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
     return (
       <>
         <div className="sidebar">
-          <div
-            className="sidebar-list-icon"
+          <button
+            type="button"
+            className={
+              this.state.isCollapsed
+                ? "sidebar-logo-toggle is-collapsed"
+                : "sidebar-logo-toggle"
+            }
             onClick={() => {
               this.handleCollapse(!this.state.isCollapsed);
             }}
+            aria-label="Toggle sidebar"
+            aria-expanded={!this.state.isCollapsed}
           >
-            <span className="icon-menu sidebar-list"></span>
-          </div>
-
-          <img
-            src={
-              ConfigService.getReaderConfig("appSkin") === "night" ||
-              (ConfigService.getReaderConfig("appSkin") === "system" &&
-                ConfigService.getReaderConfig("isOSNight") === "yes")
-                ? require(
-                    `../../assets/images/logo-dark${
-                      this.props.isAuthed ? "-pro" : ""
-                    }.png`
-                  )
-                : require(
-                    `../../assets/images/logo-light${
-                      this.props.isAuthed ? "-pro" : ""
-                    }.png`
-                  )
-            }
-            alt="Books"
-            style={this.state.isCollapsed ? { display: "none" } : {}}
-            className="logo"
-          />
+            <span className="sidebar-logo-mark" aria-hidden="true">
+              <img src={logoSource} alt="" />
+            </span>
+            <span className="sidebar-logo-title">Books</span>
+          </button>
           <div
             className="side-menu-container-parent"
             style={this.state.isCollapsed ? { width: "70px" } : {}}
@@ -552,46 +589,40 @@ class Sidebar extends React.Component<SidebarProps, SidebarState> {
               <ul className="side-shelf-container">{renderSideShelf()}</ul>
             )}
           </div>
-          {/* Stats button at the bottom */}
-          <div className="side-menu-about" style={{ paddingBottom: 8 }}>
+          <div
+            className={`sidebar-footer${
+              this.props.isCollapsed ? " is-collapsed" : ""
+            }`}
+          >
             <div
-              className={"side-menu-selector"}
-              style={{ cursor: "pointer" }}
+              className="sidebar-stats-row"
               onClick={() => {
                 this.props.history.push("/stats");
               }}
-            >
-              <div
-                className="side-menu-icon"
-                style={
-                  this.props.isCollapsed
-                    ? {}
-                    : { marginLeft: "20px", marginRight: "15px" }
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  this.props.history.push("/stats");
                 }
-              >
+              }}
+            >
+              <div className="sidebar-footer-icon">
                 <span
                   className="icon-chart sidebar-shelf-icon"
-                  style={
-                    this.props.isCollapsed
-                      ? {
-                          position: "relative",
-                          marginLeft: "-0px",
-                          fontSize: 14,
-                        }
-                      : { fontSize: 14 }
-                  }
                 ></span>
               </div>
-              <span
-                style={
-                  this.props.isCollapsed
-                    ? { display: "none", width: "70%" }
-                    : { width: "61%" }
-                }
-              >
+              <span className="sidebar-footer-label">
                 {this.props.t("Reading Stats")}
               </span>
             </div>
+            <FolderLibrary
+              books={this.props.books || []}
+              importBookFunc={this.props.importBookFunc}
+              handleFetchBooks={this.props.handleFetchBooks}
+              history={this.props.history}
+              t={this.props.t}
+            />
           </div>
         </div>
       </>

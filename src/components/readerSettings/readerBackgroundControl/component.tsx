@@ -108,7 +108,7 @@ class ReaderBackgroundControl extends React.Component<
   render() {
     const { isMimicEnabled } = this.props;
     return (
-      <section className="reader-background-control">
+      <section className="reader-background-control" data-search-key="readerBackground">
         <div className="reader-background-control-heading">
           <div>
             <span><Trans>Reader background</Trans></span>
@@ -130,7 +130,7 @@ class ReaderBackgroundControl extends React.Component<
             <Trans>Clear book background</Trans>
           </button>
         )}
-        <label className="reader-background-slider">
+        <label className="reader-background-slider" data-search-key="backgroundOpacity">
           <span><Trans>Background image opacity</Trans><b>{this.state.opacity}%</b></span>
           <input
             type="range"
@@ -140,7 +140,7 @@ class ReaderBackgroundControl extends React.Component<
             onChange={(event) => this.applyOpacity(Number(event.target.value))}
           />
         </label>
-        <div className="reader-background-mimic">
+        <div className="reader-background-mimic" data-search-key="bookSpine">
           <span><Trans>Book spine effect</Trans></span>
           <span
             className="single-control-switch"
@@ -157,7 +157,7 @@ class ReaderBackgroundControl extends React.Component<
           </span>
         </div>
         {isMimicEnabled && (
-          <label className="reader-background-slider">
+          <label className="reader-background-slider" data-search-key="bookSpineStrength">
             <span><Trans>Book spine strength</Trans><b>{this.state.spineStrength}%</b></span>
             <input
               type="range"

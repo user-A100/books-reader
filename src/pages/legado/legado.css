@@ -1,3 +1,6 @@
+/* Hallmark · pre-emit critique: P5 H4 E4 S5 R5 V4
+ * genre: utilitarian · design-system: design.md · designed-as-app
+ */
 .legado-route-active .header { display: none !important; }
 
 .legado-page { position: absolute; inset: 0 0 38px 220px; display: grid; grid-template-columns: 210px minmax(0, 1fr); overflow: hidden; background: radial-gradient(circle at 85% 8%, rgba(197, 145, 73, .11), transparent 28%), var(--color-background, #fbfaf7); color: inherit; }
@@ -71,3 +74,87 @@
 .legado-reader:fullscreen { inset: 0; width: 100vw; height: 100vh; z-index: 9999; }
 .legado-prose h1, .legado-prose h2, .legado-prose h3 { text-align: center; text-indent: 0; margin: 0 0 1.5em; }
 .legado-prose mark.legado-highlight { background: rgba(255, 214, 73, .55); color: inherit; padding: 0 .08em; border-radius: 2px; }
+
+/* Chapter caching popover. */
+.legado-cache-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.legado-cache-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid rgba(96,83,65,.2); border-radius: 8px; padding: 11px 14px; background: transparent; color: inherit; cursor: pointer; font-size: 11px; text-align: left; }
+.legado-cache-item:hover:not(:disabled) { border-color: rgba(168,111,49,.5); background: rgba(168,111,49,.09); }
+.legado-cache-item:disabled { opacity: .45; cursor: not-allowed; }
+.legado-cache-item small { font: 700 8px/1.2 Consolas, monospace; opacity: .55; }
+.legado-cache-custom { border: 1px dashed rgba(96,83,65,.24); border-radius: 8px; padding: 11px 14px; }
+.legado-cache-custom > span { font-size: 11px; }
+.legado-cache-custom-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.legado-cache-custom-row input { width: 72px; height: 32px; box-sizing: border-box; border: 1px solid rgba(96,83,65,.22); border-radius: 6px; padding: 0 8px; background: transparent; color: inherit; outline: none; font-size: 11px; }
+.legado-cache-custom-row input:focus { border-color: #a86f31; }
+.legado-cache-custom-row .primary { border: 0; border-radius: 6px; padding: 7px 14px; background: #a86f31; color: white; cursor: pointer; font-size: 10px; }
+.legado-cache-custom-row .primary:disabled { opacity: .45; cursor: not-allowed; }
+.legado-cache-custom p { margin: 8px 0 0; font-size: 9px; line-height: 1.5; opacity: .55; }
+.legado-cache-progress { margin-top: 12px; }
+.legado-cache-progress-row { display: flex; align-items: center; justify-content: space-between; font-size: 9px; opacity: .65; }
+.legado-cache-progress-row em { font-style: normal; font-family: Consolas, monospace; }
+.legado-cache-progress > i { display: block; margin-top: 6px; height: 4px; border-radius: 2px; background: rgba(96,83,65,.18); overflow: hidden; }
+.legado-cache-progress > i > em { display: block; height: 100%; background: #a86f31; transition: width .15s ease; }
+.legado-cache-error { margin: 8px 0 0; padding: 6px 8px; border-left: 3px solid #c45f52; background: rgba(196,95,82,.08); font: 9px/1.4 Consolas, monospace; color: #c45f52; white-space: pre-wrap; word-break: break-all; }
+
+/* Sub-tabs (online bookshelf / cached books) and cached-book cards. */
+.legado-tabs { display: flex; gap: 8px; margin: 0 0 18px; border-bottom: 1px solid rgba(96,83,65,.16); }
+.legado-tabs button { position: relative; top: 1px; border: 0; border-bottom: 2px solid transparent; padding: 8px 4px; background: transparent; color: inherit; cursor: pointer; font-size: 11px; opacity: .55; }
+.legado-tabs button.active { opacity: 1; border-bottom-color: var(--color-theme-color, #a86f31); }
+.legado-tabs em { font-style: normal; font: 700 8px/1.2 Consolas, monospace; opacity: .6; }
+.legado-book.legado-book-cached { position: relative; }
+.legado-book-cached .legado-book-open { width: 100%; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.legado-book-cached .legado-book-remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border: 0; border-radius: 50%; background: rgba(35,25,17,.6); color: #fff; cursor: pointer; font-size: 13px; line-height: 1; opacity: 0; transition: opacity .15s ease; }
+.legado-book-cached:hover .legado-book-remove { opacity: 1; }
+
+/* Books app alignment */
+.legado-page { background: transparent; }
+.legado-sources { background: transparent; }
+.legado-sources h2, .legado-hero h1, .legado-config-card h2, .legado-color-card h2 { font-family: inherit; }
+.legado-sources h2 { font-size: 20px; font-weight: 600; }
+.legado-hero h1 { font-size: 24px; font-weight: 600; }
+.legado-hero { padding: 22px 28px 18px; }
+.legado-server, .legado-search, .legado-book, .legado-config-card, .legado-color-card { border-radius: 6px; }
+.legado-server { background: transparent; }
+.legado-server.active { background: var(--color-hover, rgba(128,128,128,.08)); }
+.legado-server > span, .legado-cover { background: var(--color-hover, rgba(128,128,128,.1)); color: inherit; }
+.legado-hero > button, .legado-config-card .primary { border-radius: 5px; background: var(--color-theme-color, rgba(75,75,75,1)); }
+.legado-book { background: transparent; box-shadow: none; }
+.legado-book:hover { transform: none; background: var(--color-hover, rgba(128,128,128,.06)); }
+.legado-modal, .legado-popover-backdrop { backdrop-filter: none; }
+.legado-config-card, .legado-color-card { box-shadow: 0 4px 18px rgba(0,0,0,.2); }
+.legado-config-card input, .legado-config-card select { border-radius: 5px; }
+.legado-reader { background: var(--color-background, inherit); }
+.legado-reader > header strong, .legado-symbol-preview { font-family: inherit; }
+
+/* Readable sizes for the left source list, the sub-tabs and the cached badge.
+ * The earlier 8-11px values were too small to notice — the "open library"
+ * / "cached books" tabs and the server captions were near-invisible. */
+.legado-sources { padding: 24px 16px; }
+.legado-sources > header h2 { font-size: 20px; font-weight: 700; margin: 2px 0 16px; }
+.legado-sources .legado-delete { font-size: 12px; margin-top: 16px; }
+.legado-server { padding: 10px 10px; }
+.legado-server > span { width: 34px; height: 34px; font-size: 16px; border-radius: 7px; }
+.legado-server strong { font-size: 14px !important; font-weight: 600; }
+.legado-server small { font-size: 11px !important; opacity: .6; margin-top: 3px; }
+.legado-server i { font-size: 16px; opacity: .45; }
+
+.legado-tabs { gap: 18px; margin-top: 6px; }
+.legado-tabs button { font-size: 14px; font-weight: 600; padding: 10px 2px; opacity: .7; letter-spacing: .01em; }
+.legado-tabs button.active { opacity: 1; }
+.legado-tabs em { font-size: 12px; margin-left: 6px; }
+
+/* Search box: keep its own pill border on focus instead of the browser's
+ * mismatched blue outline. */
+.legado-search { transition: border-color .15s ease, background .15s ease; }
+.legado-search:focus-within {
+  border-color: var(--color-theme-color, rgba(128,128,128,.4));
+  background: var(--color-hover, rgba(128,128,128,.05));
+}
+.legado-search input { outline: none; }
+.legado-search input:focus { outline: none; box-shadow: none; }
+body.legado-route-active .header { display: block !important; }
+body.legado-route-active:has(.legado-reader) .header { display: none !important; }
+.legado-page { inset: auto; top: 70px; left: 220px; width: calc(100vw - 220px); height: calc(100vh - 108px); }
+@media (max-width: 760px) {
+  .legado-page { left: 70px; width: calc(100vw - 70px); }
+}

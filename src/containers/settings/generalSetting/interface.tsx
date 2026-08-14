@@ -50,4 +50,9 @@ export interface SettingInfoState {
   isHideShelfBook: boolean;
   isPreventAdd: boolean;
   startupShelf: string;
+  isMoyu: boolean;
+  moyuAccelerator: string;
+  isRecordingHotkey: boolean;
+  hasCustomHotkey: boolean;
+  hotkeyError: string;
 }

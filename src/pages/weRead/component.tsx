@@ -4,6 +4,22 @@ import toast from "react-hot-toast";
 import { WeReadBook, WeReadChapter, WeReadSourceConfig } from "../../models/WeRead";
 import { getWeReadBook, getWeReadChapters, searchWeRead } from "../../services/onlineLibrary/weRead";
 import { getWeReadConfig, hasWeReadCredentials, saveWeReadConfig } from "../../services/onlineLibrary/weReadStorage";
+import {
+  getWeReadBookmarks,
+  getWeReadLoginStatus,
+  getWeReadNotebooks,
+  getWeReadShelf,
+} from "../../services/onlineLibrary/wereadSync";
+import {
+  getWereReadLastSync,
+  getWereReadShelf as getStoredWereReadShelf,
+  saveWereReadLastSync,
+  saveWereReadShelf,
+} from "../../services/onlineLibrary/wereadSyncStorage";
+import { importWeReadBookmarks } from "../../services/onlineLibrary/wereadNoteImport";
+import { WeReadShelfItem, WeReadSyncResult } from "../../models/WeRead";
+import store from "../../store";
+import { handleFetchNotes } from "../../store/actions";
 import "./weRead.css";
 
 interface WeReadProps {
@@ -23,6 +39,11 @@ interface WeReadState {
   isLoadingDetail: boolean;
   error: string;
   loginMode: "qr" | "manual";
+  loginStatus: boolean;
+  isSyncing: boolean;
+  syncResult: WeReadSyncResult | null;
+  lastSync: number;
+  shelfItems: WeReadShelfItem[];
 }
 
 const safeExternalBookUrl = (bookId: string) =>
@@ -42,6 +63,11 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
     isLoadingDetail: false,
     error: "",
     loginMode: getWeReadConfig().loginMode || "qr",
+    loginStatus: false,
+    isSyncing: false,
+    syncResult: null,
+    lastSync: getWereReadLastSync(),
+    shelfItems: getStoredWereReadShelf(),
   };
 
   updateConfig = (patch: Partial<WeReadSourceConfig>) => {
@@ -58,9 +84,90 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
   };
 
   openQrLogin = () => {
-    const url = "https://weread.qq.com/";
+    // #login opens WeRead's login modal directly, so the QR code is shown
+    // immediately instead of the marketing homepage (which hides login behind
+    // a button). Scanning here is what sets the wr_vid/wr_skey session cookies
+    // the sync depends on.
+    const url = "https://weread.qq.com/#login";
     window.location.hash = `/manager/web?url=${encodeURIComponent(url)}`;
-    toast("已在 Books 内嵌网页中打开微信读书，请在该页扫码登录。");
+    toast("已在 Books 内嵌网页中打开微信读书，请扫码登录后再回到此页点击“同步”。");
+  };
+
+  async componentDidMount() {
+    await this.checkLoginStatus();
+  }
+
+  checkLoginStatus = async () => {
+    const loggedIn = await getWeReadLoginStatus();
+    this.setState({ loginStatus: loggedIn });
+    return loggedIn;
+  };
+
+  handleSync = async () => {
+    this.setState({ isSyncing: true, error: "" });
+    const errors: string[] = [];
+    let shelfItems: WeReadShelfItem[] = [];
+    let notebookCount = 0;
+    let bookmarkCount = 0;
+    let importedNotes = 0;
+    let skippedNotes = 0;
+
+    try {
+      shelfItems = (await getWeReadShelf()).map((item) => ({
+        ...item,
+        syncedAt: Date.now(),
+      }));
+      saveWereReadShelf(shelfItems);
+    } catch (error) {
+      errors.push(`书架同步失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    try {
+      const notebooks = await getWeReadNotebooks();
+      notebookCount = notebooks.length;
+      for (const notebook of notebooks) {
+        try {
+          const bookmarks = await getWeReadBookmarks(notebook.bookId);
+          bookmarkCount += bookmarks.length;
+          const result = await importWeReadBookmarks(
+            notebook.bookId,
+            `weread-${notebook.bookId}`,
+            bookmarks
+          );
+          importedNotes += result.imported;
+          skippedNotes += result.skipped;
+        } catch (error) {
+          errors.push(
+            `笔记导入失败(${notebook.bookId})：${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+    } catch (error) {
+      errors.push(`笔记列表获取失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    try {
+      store.dispatch(handleFetchNotes() as any);
+    } catch {
+      // refresh is best-effort
+    }
+
+    const now = Date.now();
+    saveWereReadLastSync(now);
+    this.setState({
+      isSyncing: false,
+      shelfItems,
+      lastSync: now,
+      syncResult: {
+        shelfCount: shelfItems.length,
+        bookmarkCount,
+        notebookCount,
+        importedNotes,
+        skippedNotes,
+        errors,
+        syncedAt: now,
+      },
+    });
   };
 
   handleSearch = async (page = 1) => {
@@ -114,8 +221,7 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
     return (
       <section className="weread-panel weread-config">
         <div className="weread-section-title">
-          <div><p>WECHAT READING</p><h2><Trans>Authorization parameters</Trans></h2></div>
-          <span>{hasWeReadCredentials(config) ? "READY" : "SETUP"}</span>
+          <div><h2><Trans>Authorization parameters</Trans></h2></div>
         </div>
         <div className="weread-login-tabs">
           <button className={this.state.loginMode === "qr" ? "active" : ""} onClick={() => this.setState({ loginMode: "qr" })}>扫码登录</button>
@@ -141,17 +247,93 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
     );
   }
 
+  renderSyncSection() {
+    const { loginStatus, isSyncing, syncResult, lastSync } = this.state;
+    return (
+      <section className="weread-panel weread-sync">
+        <div className="weread-section-title">
+          <div>
+            <h2>
+              <Trans>Sync from WeRead</Trans>
+            </h2>
+          </div>
+        </div>
+        {loginStatus ? (
+          <>
+            <p className="weread-help">
+              <Trans>
+                Pull your shelf, reading progress, highlights and thoughts into
+                Books. Your WeRead cloud is never modified.
+              </Trans>
+            </p>
+            <div className="weread-actions">
+              <button disabled={isSyncing} onClick={this.handleSync}>
+                {isSyncing ? <Trans>Syncing</Trans> : <Trans>Sync now</Trans>}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="weread-qr-login">
+            <div>
+              <strong>
+                <Trans>Not logged in</Trans>
+              </strong>
+              <p>
+                <Trans>
+                  Scan the WeRead QR code in the embedded browser to enable sync.
+                </Trans>
+              </p>
+              <button onClick={this.openQrLogin}>
+                <Trans>Open QR login</Trans>
+              </button>
+            </div>
+          </div>
+        )}
+        {lastSync > 0 && (
+          <small className="weread-last-sync">
+            <Trans>Last sync</Trans>: {new Date(lastSync).toLocaleString()}
+          </small>
+        )}
+        {syncResult && (
+          <div className="weread-sync-result">
+            <div>
+              <span>
+                <Trans>Shelf books</Trans>
+              </span>
+              <strong>{syncResult.shelfCount}</strong>
+            </div>
+            <div>
+              <span>
+                <Trans>Highlights imported</Trans>
+              </span>
+              <strong>{syncResult.importedNotes}</strong>
+            </div>
+            <div>
+              <span>
+                <Trans>Skipped (already synced)</Trans>
+              </span>
+              <strong>{syncResult.skippedNotes}</strong>
+            </div>
+            {syncResult.errors.length > 0 && (
+              <pre className="weread-error">{syncResult.errors.join("\n")}</pre>
+            )}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   render() {
     const { books, selectedBook, chapters } = this.state;
     return (
       <div className="weread-page">
         <main className="weread-main">
           <header className="weread-header">
-            <p>API BOOK SOURCE</p>
             <h1>{this.state.config.name}</h1>
             <span><Trans>Search and browse metadata from your authorized account.</Trans></span>
           </header>
           {this.renderCredentials()}
+          {this.renderSyncSection()}
           <section className="weread-search">
             <input
               value={this.state.keyword}
@@ -165,7 +347,7 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
           {this.state.isLoading && <div className="weread-state"><i /><Trans>Searching...</Trans></div>}
           {books.length > 0 && (
             <section className="weread-results">
-              <div className="weread-section-title"><div><p>RESULTS</p><h2><Trans>Search results</Trans></h2></div><span>{books.length}</span></div>
+              <div className="weread-section-title"><div><h2><Trans>Search results</Trans></h2></div><span>{books.length}</span></div>
               <div className="weread-book-grid">
                 {books.map((book) => (
                   <button key={book.id} className="weread-book" onClick={() => this.handleOpenBook(book)}>
@@ -179,7 +361,7 @@ class WeRead extends React.Component<WeReadProps, WeReadState> {
           )}
           {selectedBook && (
             <section className="weread-panel weread-detail">
-              <div className="weread-section-title"><div><p>BOOK DETAIL</p><h2>{selectedBook.title}</h2></div><a href={safeExternalBookUrl(selectedBook.id)} target="_blank" rel="noreferrer"><Trans>Open in WeRead</Trans></a></div>
+              <div className="weread-section-title"><div><h2>{selectedBook.title}</h2></div><a href={safeExternalBookUrl(selectedBook.id)} target="_blank" rel="noreferrer"><Trans>Open in WeRead</Trans></a></div>
               <div className="weread-detail-copy"><strong>{selectedBook.author || this.props.t("Unknown author")}</strong><p>{selectedBook.description || this.props.t("No description parsed")}</p><small>{selectedBook.totalWords ? `${selectedBook.totalWords} · ` : ""}{selectedBook.updateTime}</small></div>
               {this.state.isLoadingDetail ? <div className="weread-state"><i /><Trans>Loading chapters...</Trans></div> : chapters.length > 0 ? <div className="weread-chapters">{chapters.map((chapter, index) => <div key={chapter.id}><span>{String(index + 1).padStart(2, "0")}</span><strong>{chapter.title}</strong>{chapter.isPaid && <em>授权限制</em>}</div>)}</div> : <p className="weread-help"><Trans>No chapter metadata was returned by WeRead.</Trans></p>}
               <p className="weread-notice"><Trans>Books does not decrypt protected chapter packages or bypass paid/member access. Open the book in WeRead to read content you are authorized to access.</Trans></p>

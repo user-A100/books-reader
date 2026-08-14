@@ -36,6 +36,7 @@ let lock = false; //prevent from clicking too fasts
 
 class Viewer extends React.Component<ViewerProps, ViewerState> {
   private resizeHandler: (() => void) | null = null;
+  private removeMouseEvents: (() => void) | null = null;
   private _pendingRerender = false;
   lock: boolean;
   constructor(props: ViewerProps) {
@@ -110,6 +111,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       window.removeEventListener("resize", this.resizeHandler);
       this.resizeHandler = null;
     }
+    this.removeMouseEvents?.();
+    this.removeMouseEvents = null;
   }
   async UNSAFE_componentWillReceiveProps(nextProps: ViewerProps) {
     if (
@@ -212,6 +215,8 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   };
   handleRenderBook = async () => {
     if (lock) return;
+    this.removeMouseEvents?.();
+    this.removeMouseEvents = null;
     let { key, path, format, name } = this.props.currentBook;
     if (ConfigService.getAllListConfig("seperateStyleBooks").includes(key)) {
       window.currentBookKey = key;
@@ -351,7 +356,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
   };
 
   handleRest = async (rendition: any) => {
-    htmlMouseEvent(
+    this.removeMouseEvents = htmlMouseEvent(
       rendition,
       this.props.currentBook.key,
       this.props.readerMode,

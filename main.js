@@ -13,6 +13,8 @@ const {
   screen,
   systemPreferences,
   net,
+  session,
+  globalShortcut,
 } = require("electron");
 const path = require("path");
 const isDev = require("electron-is-dev");
@@ -25,6 +27,13 @@ const { execFile } = require("child_process");
 app.setPath("userData", path.join(app.getPath("appData"), "koodo-reader"));
 const store = new Store();
 const fs = require("fs");
+const crypto = require("crypto");
+const chokidar = require("chokidar");
+const {
+  TEXT_CHAPTER_EXTENSIONS,
+  analyzeFolderBooks,
+  buildFolderBookEpub,
+} = require("./src/services/folderLibrary/folderBook");
 const configDir = app.getPath("userData");
 const dirPath = path.join(configDir, "uploads");
 const packageJson = require("./package.json");
@@ -47,6 +56,7 @@ let dbConnection = {};
 let syncUtilCache = {};
 let pickerUtilCache = {};
 let downloadRequest = null;
+let folderLibraryWatcher = null;
 
 const RESIZE_THROTTLE_MS = 300;
 const ONLINE_LIBRARY_MAX_BYTES = 80 * 1024 * 1024;
@@ -63,6 +73,199 @@ const WEB_NAVIGATOR_BOOK_EXTENSIONS = new Set([
   ".cbr",
   ".cb7",
 ]);
+const FOLDER_LIBRARY_EXTENSIONS = new Set([
+  ...WEB_NAVIGATOR_BOOK_EXTENSIONS,
+  ".htm",
+  ".html",
+  ".xml",
+  ".xhtml",
+  ".mhtml",
+  ".docx",
+  ".md",
+]);
+
+const normalizeFolderLibraryRoot = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("Please select a library folder");
+  }
+  const root = fs.realpathSync(path.resolve(value));
+  if (!fs.statSync(root).isDirectory()) {
+    throw new Error("The selected library path is not a folder");
+  }
+  return root;
+};
+
+const resolveFolderLibraryPath = (root, relativePath = "", allowMissing = false) => {
+  const cleanRelative = String(relativePath || "").replace(/\\/g, "/");
+  if (path.isAbsolute(cleanRelative) || cleanRelative.split("/").includes("..")) {
+    throw new Error("Invalid library path");
+  }
+  const candidate = path.resolve(root, cleanRelative);
+  const relative = path.relative(root, candidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("The path is outside the library");
+  }
+  if (!allowMissing && fs.existsSync(candidate)) {
+    const realCandidate = fs.realpathSync(candidate);
+    const realRelative = path.relative(root, realCandidate);
+    if (realRelative.startsWith("..") || path.isAbsolute(realRelative)) {
+      throw new Error("Symbolic links outside the library are not supported");
+    }
+    return realCandidate;
+  }
+  return candidate;
+};
+
+const toFolderLibraryEntry = (root, absolutePath, stats) => ({
+  name: path.basename(absolutePath),
+  path: path.relative(root, absolutePath).split(path.sep).join("/"),
+  type: stats.isDirectory() ? "folder" : "file",
+  size: stats.isFile() ? stats.size : 0,
+  mtimeMs: stats.mtimeMs,
+});
+
+const scanFolderLibrary = async (root) => {
+  const entries = [];
+  const visit = async (directory) => {
+    const children = await fs.promises.readdir(directory, { withFileTypes: true });
+    children.sort((a, b) => {
+      if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { numeric: true });
+    });
+    for (const child of children) {
+      if (child.isSymbolicLink()) continue;
+      const absolutePath = path.join(directory, child.name);
+      if (child.isDirectory()) {
+        const stats = await fs.promises.stat(absolutePath);
+        entries.push(toFolderLibraryEntry(root, absolutePath, stats));
+        await visit(absolutePath);
+      } else if (
+        child.isFile() &&
+        FOLDER_LIBRARY_EXTENSIONS.has(path.extname(child.name).toLowerCase())
+      ) {
+        const stats = await fs.promises.stat(absolutePath);
+        entries.push(toFolderLibraryEntry(root, absolutePath, stats));
+      }
+    }
+  };
+  await visit(root);
+  const folderBooks = analyzeFolderBooks(entries);
+  const folderBookMap = new Map(folderBooks.map((book) => [book.path, book]));
+  entries.forEach((entry) => {
+    if (entry.type === "folder" && folderBookMap.has(entry.path)) {
+      entry.folderBook = folderBookMap.get(entry.path);
+    }
+  });
+  return entries;
+};
+
+const composeFolderLibraryBook = async (root, relativeFolder) => {
+  const folder = resolveFolderLibraryPath(root, relativeFolder);
+  if (!(await fs.promises.stat(folder)).isDirectory()) {
+    throw new Error("The selected chapter book is not a folder");
+  }
+  const entries = await scanFolderLibrary(root);
+  const descriptor = analyzeFolderBooks(entries).find(
+    (book) => book.path === String(relativeFolder || "").replace(/\\/g, "/")
+  );
+  if (!descriptor) throw new Error("This folder is not a supported chapter book");
+
+  const chapters = [];
+  const visit = async (directory) => {
+    const children = await fs.promises.readdir(directory, { withFileTypes: true });
+    for (const child of children) {
+      if (child.isSymbolicLink()) continue;
+      const absolutePath = path.join(directory, child.name);
+      if (child.isDirectory()) {
+        await visit(absolutePath);
+      } else if (
+        child.isFile() &&
+        TEXT_CHAPTER_EXTENSIONS.has(path.extname(child.name).toLowerCase()) &&
+        !["readme.md", "readme.txt", "index.md", "index.txt"].includes(
+          child.name.toLowerCase()
+        )
+      ) {
+        chapters.push({
+          path: path.relative(folder, absolutePath).split(path.sep).join("/"),
+          content: await fs.promises.readFile(absolutePath, "utf8"),
+        });
+      }
+    }
+  };
+  await visit(folder);
+  if (chapters.length < 2) throw new Error("A chapter book needs at least two text chapters");
+
+  const cacheDirectory = path.join(app.getPath("userData"), "folder-books");
+  await fs.promises.mkdir(cacheDirectory, { recursive: true });
+  const cacheKey = crypto
+    .createHash("sha256")
+    .update(`${root}\0${descriptor.path}`)
+    .digest("hex");
+  const target = path.join(cacheDirectory, `${cacheKey}.epub`);
+  const temporary = `${target}.${process.pid}.tmp`;
+  const epub = await buildFolderBookEpub(
+    descriptor.title,
+    chapters,
+    `urn:koodo:folder-book:${cacheKey}`
+  );
+  await fs.promises.writeFile(temporary, epub);
+  await fs.promises.rename(temporary, target);
+  const stats = await fs.promises.stat(target);
+  return {
+    path: target,
+    name: `${descriptor.title}.epub`,
+    title: descriptor.title,
+    chapterCount: chapters.length,
+    size: stats.size,
+    mtimeMs: stats.mtimeMs,
+  };
+};
+
+const sanitizeFolderLibraryName = (value, markdown = false) => {
+  let name = String(value || "").trim();
+  if (markdown && !name.toLowerCase().endsWith(".md")) name += ".md";
+  if (!name || name === "." || name === ".." || /[<>:"/\\|?*\x00-\x1f]/.test(name)) {
+    throw new Error("The name contains invalid characters");
+  }
+  return name;
+};
+
+const stopFolderLibraryWatcher = async () => {
+  if (folderLibraryWatcher) await folderLibraryWatcher.close();
+  folderLibraryWatcher = null;
+};
+
+const startFolderLibraryWatcher = async (root, sender) => {
+  await stopFolderLibraryWatcher();
+  folderLibraryWatcher = chokidar.watch(root, {
+    ignoreInitial: true,
+    atomic: true,
+    alwaysStat: true,
+    awaitWriteFinish: { stabilityThreshold: 900, pollInterval: 150 },
+  });
+  const notify = (eventName, absolutePath, stats) => {
+    if (!sender || sender.isDestroyed()) return;
+    const extension = path.extname(absolutePath).toLowerCase();
+    if (eventName.includes("Dir") || FOLDER_LIBRARY_EXTENSIONS.has(extension)) {
+      sender.send("folder-library-changed", {
+        event: eventName,
+        path: path.relative(root, absolutePath).split(path.sep).join("/"),
+        entry: stats ? toFolderLibraryEntry(root, absolutePath, stats) : null,
+      });
+    }
+  };
+  ["add", "change", "unlink", "addDir", "unlinkDir"].forEach((eventName) => {
+    folderLibraryWatcher.on(eventName, (absolutePath, stats) =>
+      notify(eventName, absolutePath, stats)
+    );
+  });
+};
+
+const assertFolderLibrarySender = (event) => {
+  if (!mainWin || event.sender !== mainWin.webContents) {
+    throw new Error("Invalid folder library request");
+  }
+};
 const normalizeOnlineLibraryUrl = (value) => {
   if (typeof value !== "string") return null;
   try {
@@ -94,6 +297,37 @@ const normalizeWeReadUrl = (value) => {
     }
     if (!parsed.pathname.startsWith("/store/") &&
         !parsed.pathname.startsWith("/book/")) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
+// Allowlist for the logged-in (QR-scan) web sync channel. These endpoints serve
+// the user's own shelf, progress, and annotations, fetched with the partition
+// session cookies — never chapter body, never paid/decrypted content.
+const WEREAD_WEB_PATH_PREFIXES = [
+  "/web/shelf",
+  "/web/book/bookmarklist",
+  "/web/book/info",
+  "/shelf/sync",
+  "/shelf/bookids",
+  "/user/notebooks",
+  "/book/info",
+  "/book/chapterinfos",
+];
+const normalizeWeReadWebUrl = (value) => {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== "https:") return null;
+    const host = parsed.hostname.toLowerCase();
+    if (host !== "weread.qq.com" && host !== "i.weread.qq.com") return null;
+    if (parsed.username || parsed.password) return null;
+    const path = parsed.pathname.toLowerCase();
+    if (!WEREAD_WEB_PATH_PREFIXES.some((prefix) => path.startsWith(prefix))) {
       return null;
     }
     return parsed.toString();
@@ -1615,6 +1849,101 @@ const createMainWin = () => {
     });
     return path.filePaths[0];
   });
+  ipcMain.handle("folder-library-select", async (event) => {
+    assertFolderLibrarySender(event);
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory", "createDirectory"],
+      title: "Select folder library",
+    });
+    return result.canceled ? "" : result.filePaths[0] || "";
+  });
+  ipcMain.handle("folder-library-open", async (event, config) => {
+    assertFolderLibrarySender(event);
+    const root = normalizeFolderLibraryRoot(config?.root);
+    await startFolderLibraryWatcher(root, event.sender);
+    return { root, entries: await scanFolderLibrary(root) };
+  });
+  ipcMain.handle("folder-library-scan", async (event, config) => {
+    assertFolderLibrarySender(event);
+    const root = normalizeFolderLibraryRoot(config?.root);
+    return { root, entries: await scanFolderLibrary(root) };
+  });
+  ipcMain.handle("folder-library-compose-book", async (event, config) => {
+    assertFolderLibrarySender(event);
+    const root = normalizeFolderLibraryRoot(config?.root);
+    return composeFolderLibraryBook(root, config?.folder || "");
+  });
+  ipcMain.handle("folder-library-create", async (event, config) => {
+    assertFolderLibrarySender(event);
+    const root = normalizeFolderLibraryRoot(config?.root);
+    const parent = resolveFolderLibraryPath(root, config?.parent || "");
+    const parentStats = await fs.promises.stat(parent);
+    if (!parentStats.isDirectory()) throw new Error("The target is not a folder");
+    const isMarkdown = config?.type === "markdown";
+    const name = sanitizeFolderLibraryName(config?.name, isMarkdown);
+    const target = resolveFolderLibraryPath(root, path.join(config?.parent || "", name), true);
+    if (isMarkdown) {
+      await fs.promises.writeFile(target, `# ${path.basename(name, ".md")}\n`, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+    } else {
+      await fs.promises.mkdir(target);
+    }
+    return path.relative(root, target).split(path.sep).join("/");
+  });
+  ipcMain.handle("folder-library-move", async (event, config) => {
+    assertFolderLibrarySender(event);
+    const root = normalizeFolderLibraryRoot(config?.root);
+    const source = resolveFolderLibraryPath(root, config?.source);
+    const targetDirectory = resolveFolderLibraryPath(root, config?.target || "");
+    if (!(await fs.promises.stat(targetDirectory)).isDirectory()) {
+      throw new Error("The target is not a folder");
+    }
+    const target = resolveFolderLibraryPath(
+      root,
+      path.join(config?.target || "", path.basename(source)),
+      true
+    );
+    const sourceRelative = path.relative(source, target);
+    if (!sourceRelative || (!sourceRelative.startsWith("..") && !path.isAbsolute(sourceRelative))) {
+      throw new Error("A folder cannot be moved into itself");
+    }
+    if (fs.existsSync(target)) throw new Error("An item with this name already exists");
+    await fs.promises.rename(source, target);
+    return path.relative(root, target).split(path.sep).join("/");
+  });
+  ipcMain.handle("folder-library-copy-files", async (event, config) => {
+    assertFolderLibrarySender(event);
+    const root = normalizeFolderLibraryRoot(config?.root);
+    const targetDirectory = resolveFolderLibraryPath(root, config?.target || "");
+    if (!(await fs.promises.stat(targetDirectory)).isDirectory()) {
+      throw new Error("The target is not a folder");
+    }
+    const copied = [];
+    for (const sourceValue of Array.isArray(config?.sources) ? config.sources : []) {
+      const source = fs.realpathSync(path.resolve(sourceValue));
+      const stats = await fs.promises.stat(source);
+      if (!stats.isFile() || !FOLDER_LIBRARY_EXTENSIONS.has(path.extname(source).toLowerCase())) {
+        continue;
+      }
+      const target = resolveFolderLibraryPath(
+        root,
+        path.join(config?.target || "", path.basename(source)),
+        true
+      );
+      if (path.resolve(source) === path.resolve(target)) continue;
+      await fs.promises.copyFile(source, target, fs.constants.COPYFILE_EXCL);
+      copied.push(path.relative(root, target).split(path.sep).join("/"));
+    }
+    return copied;
+  });
+  ipcMain.handle("folder-library-show", async (event, config) => {
+    assertFolderLibrarySender(event);
+    const { shell } = require("electron");
+    const root = normalizeFolderLibraryRoot(config?.root);
+    return shell.openPath(root);
+  });
   ipcMain.handle("select-file", async (event, config) => {
     const dialogOptions = { properties: ["openFile"] };
     if (config && config.filters) {
@@ -2164,6 +2493,78 @@ const createMainWin = () => {
       };
     }
   });
+  // Logged-in web sync channel: carries the partition session cookies so it can
+  // reach the user's shelf/progress/annotation endpoints. Independent from
+  // weread-request (which is credentials:"omit" + manual vid/accessToken).
+  ipcMain.handle("weread-web-request", async (event, value) => {
+    if (!mainWin || event.sender !== mainWin.webContents) {
+      return { ok: false, error: "Invalid sender" };
+    }
+    const url = normalizeWeReadWebUrl(value?.url);
+    if (!url) return { ok: false, error: "Unsupported WeRead URL" };
+    try {
+      const partitionSession = session.fromPartition(
+        "persist:koodo-web-navigator"
+      );
+      const response = await partitionSession.fetch(url, {
+        method: "GET",
+        redirect: "follow",
+        headers: { Accept: "application/json" },
+      });
+      const finalUrl = normalizeWeReadWebUrl(response.url);
+      if (!response.ok || !finalUrl) {
+        return { ok: false, status: response.status, error: `HTTP ${response.status}` };
+      }
+      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("json")) {
+        return { ok: false, error: "Unexpected WeRead response type" };
+      }
+      const contentLength = Number(response.headers.get("content-length") || 0);
+      if (contentLength > 5 * 1024 * 1024) {
+        return { ok: false, error: "WeRead response is too large" };
+      }
+      const text = await response.text();
+      if (text.length > 5 * 1024 * 1024) {
+        return { ok: false, error: "WeRead response is too large" };
+      }
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return { ok: false, error: "Invalid WeRead JSON response" };
+      }
+      return { ok: true, status: response.status, contentType, data };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+  // Zero-network login check: reads cookies persisted in the embedded-browser
+  // partition after the user scanned the WeRead QR code.
+  ipcMain.handle("weread-web-login-status", async (event) => {
+    if (!mainWin || event.sender !== mainWin.webContents) {
+      return { loggedIn: false };
+    }
+    try {
+      const ses = session.fromPartition("persist:koodo-web-navigator");
+      const allCookies = await ses.cookies.get({});
+      const wereadCookies = allCookies.filter(
+        (cookie) =>
+          cookie.domain && cookie.domain.toLowerCase().includes("weread.qq.com")
+      );
+      const hasVid = wereadCookies.some(
+        (cookie) => cookie.name === "wr_vid" && cookie.value
+      );
+      const hasSkey = wereadCookies.some(
+        (cookie) => cookie.name === "wr_skey" && cookie.value
+      );
+      return { loggedIn: hasVid && hasSkey };
+    } catch {
+      return { loggedIn: false };
+    }
+  });
   ipcMain.handle("legado-request", async (event, value) => {
     if (!mainWin || event.sender !== mainWin.webContents) {
       return { ok: false, error: "Invalid sender" };
@@ -2515,12 +2916,244 @@ const createMainWin = () => {
   });
 };
 
+// === 摸鱼快捷键 (stealth / slacking-off toggle) ===
+// Inspired by ColorTxt's "摸鱼快捷键": one OS-level global hotkey instantly
+// hides every Books window and removes it from the taskbar (Windows) / dock
+// (macOS), so reading at work stays discreet. Pressing the same hotkey again
+// restores every window exactly as it was (minimized windows re-minimize).
+// Default Ctrl+`; works even when Books is not the focused app.
+const DEFAULT_MOYU_ACCELERATOR = "Control+`";
+// ColorTxt's signature Ctrl+` is commonly grabbed by terminals/IDEs on
+// developer machines, so if the preferred accelerator is occupied we fall
+// through this chain until one registers. The settings UI shows whichever key
+// actually bound, so the user always knows the real hotkey.
+const MOYU_ACCELERATOR_FALLBACKS = [
+  "Control+`",
+  "CommandOrControl+Shift+`",
+  "CommandOrControl+Shift+H",
+];
+let moyuStealthActive = false;
+let moyuRegisteredAccelerator = null;
+const moyuMinimizedSnapshot = new Map(); // windowId -> wasMinimized
+
+const getMoyuAccelerator = () => {
+  const stored = store.get("moyuAccelerator");
+  return typeof stored === "string" && stored.trim()
+    ? stored.trim()
+    : DEFAULT_MOYU_ACCELERATOR;
+};
+const isMoyuEnabled = () => store.get("moyuEnabled") !== false; // default on
+
+// Validates an Electron accelerator string the user picked in settings. A global
+// shortcut needs at least one modifier (Ctrl/Alt/Cmd/...) plus a real key, so we
+// reject bare keys, modifier-only input, and unsupported key tokens before
+// attempting to register — that way malformed choices are never persisted.
+const MOYU_MODIFIERS = new Set([
+  "Control", "Ctrl", "Command", "Cmd", "CommandOrControl", "Alt", "Option",
+  "Shift", "Meta", "Super",
+]);
+const MOYU_KEYS = new Set([
+  "Space", "Backspace", "Delete", "Insert", "Return", "Enter", "Up", "Down",
+  "Left", "Right", "Home", "End", "PageUp", "PageDown", "Escape", "Esc", "Tab",
+  "`", "-", "=", "[", "]", "\\", ";", "'", ",", ".", "/",
+]);
+const isValidMoyuAccelerator = (acc) => {
+  if (typeof acc !== "string") return false;
+  const parts = acc.split("+").map((s) => s.trim()).filter(Boolean);
+  if (parts.length < 2) return false; // modifier + key, at minimum
+  const key = parts[parts.length - 1];
+  if (MOYU_MODIFIERS.has(key)) return false; // ends on a modifier → no key
+  const hasModifier = parts.slice(0, -1).some((p) => MOYU_MODIFIERS.has(p));
+  if (!hasModifier) return false;
+  return (
+    /^[A-Za-z]$/.test(key) ||
+    /^[0-9]$/.test(key) ||
+    /^F([1-9]|1[0-9]|2[0-4])$/.test(key) ||
+    MOYU_KEYS.has(key)
+  );
+};
+
+const toggleMoyuStealth = () => {
+  const windows = BrowserWindow.getAllWindows();
+  if (!moyuStealthActive) {
+    // Enter stealth: remember each window's minimized state, then hide it and
+    // drop it from the taskbar/dock so it leaves no trace.
+    for (const win of windows) {
+      if (win.isDestroyed()) continue;
+      moyuMinimizedSnapshot.set(win.id, win.isMinimized());
+      win.setSkipTaskbar(true);
+      win.hide();
+    }
+    moyuStealthActive = true;
+    if (process.platform === "darwin") {
+      try {
+        app.dock.hide();
+      } catch {
+        // dock API unavailable — ignore
+      }
+    }
+    return;
+  }
+  // Exit stealth: restore visibility and each window's prior minimized state.
+  moyuStealthActive = false;
+  if (process.platform === "darwin") {
+    try {
+      app.dock.show();
+    } catch {
+      // dock API unavailable — ignore
+    }
+  }
+  let firstFocusable = null;
+  for (const win of windows) {
+    if (win.isDestroyed()) continue;
+    win.setSkipTaskbar(false);
+    win.show();
+    if (moyuMinimizedSnapshot.get(win.id)) {
+      win.minimize();
+    } else if (!firstFocusable) {
+      firstFocusable = win;
+    }
+  }
+  moyuMinimizedSnapshot.clear();
+  if (firstFocusable) firstFocusable.focus();
+};
+
+const registerMoyuShortcut = () => {
+  if (moyuRegisteredAccelerator) {
+    try {
+      globalShortcut.unregister(moyuRegisteredAccelerator);
+    } catch {
+      // already unregistered — ignore
+    }
+    moyuRegisteredAccelerator = null;
+  }
+  if (!isMoyuEnabled()) return;
+  // If the user explicitly chose an accelerator, try only that one. Otherwise
+  // walk the fallback chain so the feature works even when Ctrl+` is taken.
+  const stored = store.get("moyuAccelerator");
+  const candidates =
+    typeof stored === "string" && stored.trim()
+      ? [stored.trim()]
+      : MOYU_ACCELERATOR_FALLBACKS;
+  for (const accelerator of candidates) {
+    try {
+      if (globalShortcut.register(accelerator, toggleMoyuStealth)) {
+        moyuRegisteredAccelerator = accelerator;
+        if (accelerator !== DEFAULT_MOYU_ACCELERATOR) {
+          log.info(
+            `摸鱼快捷键已注册：${accelerator}（默认 ${DEFAULT_MOYU_ACCELERATOR} 被占用，已改用备选）`
+          );
+        }
+        return;
+      }
+    } catch (error) {
+      log.warn(
+        `摸鱼快捷键注册异常（${accelerator}）：${
+          error && error.message ? error.message : String(error)
+        }`
+      );
+    }
+  }
+  log.warn("摸鱼快捷键注册失败：所有候选快捷键均被占用，可在设置中关闭");
+};
+
+ipcMain.handle("moyu-get-config", () => {
+  const hasCustomKey = !!store.get("moyuAccelerator");
+  return {
+    enabled: isMoyuEnabled(),
+    // Show the accelerator that actually registered (may differ from the
+    // preferred Ctrl+` if it was occupied).
+    accelerator: moyuRegisteredAccelerator || getMoyuAccelerator(),
+    defaultAccelerator: DEFAULT_MOYU_ACCELERATOR,
+    hasCustomKey, // true once the user has chosen their own hotkey
+    active: moyuStealthActive,
+  };
+});
+ipcMain.handle("moyu-set-enabled", (_event, enabled) => {
+  store.set("moyuEnabled", !!enabled);
+  registerMoyuShortcut();
+  return { enabled: isMoyuEnabled() };
+});
+// Let the user pick their own hotkey in settings. `accelerator` is an Electron
+// accelerator string (e.g. "Control+Alt+P"); pass null/"" to clear the custom
+// choice and fall back to the built-in chain. We try to register the candidate
+// live so we can tell the user immediately if it's already taken.
+ipcMain.handle("moyu-set-accelerator", (_event, raw) => {
+  // null / empty => reset to the built-in fallback chain
+  if (raw === null || (typeof raw === "string" && raw.trim() === "")) {
+    if (moyuRegisteredAccelerator) {
+      try { globalShortcut.unregister(moyuRegisteredAccelerator); } catch {}
+      moyuRegisteredAccelerator = null;
+    }
+    try { store.delete("moyuAccelerator"); } catch {}
+    registerMoyuShortcut();
+    return {
+      ok: true,
+      reset: true,
+      accelerator: moyuRegisteredAccelerator,
+      hasCustomKey: false,
+    };
+  }
+
+  const candidate = String(raw).trim();
+  if (!isValidMoyuAccelerator(candidate)) {
+    // Don't touch the live binding; just reject the malformed input.
+    return {
+      ok: false,
+      reason: "invalid",
+      accelerator: moyuRegisteredAccelerator,
+      hasCustomKey: !!store.get("moyuAccelerator"),
+    };
+  }
+
+  // Step aside from the current binding so the candidate is tested fairly.
+  const prev = moyuRegisteredAccelerator;
+  if (prev) {
+    try { globalShortcut.unregister(prev); } catch {}
+    moyuRegisteredAccelerator = null;
+  }
+
+  const enabled = isMoyuEnabled();
+  let bound = false;
+  if (enabled) {
+    try { bound = !!globalShortcut.register(candidate, toggleMoyuStealth); } catch {}
+  }
+
+  if (bound) {
+    store.set("moyuAccelerator", candidate);
+    moyuRegisteredAccelerator = candidate;
+    return { ok: true, accelerator: candidate, hasCustomKey: true };
+  }
+
+  // Valid key, but we couldn't bind it right now (feature off, or the key is
+  // occupied by another app). Remember the choice for the next enable, then
+  // restore whatever was bound before so the feature keeps working.
+  store.set("moyuAccelerator", candidate);
+  if (enabled) {
+    if (prev) {
+      try { globalShortcut.register(prev, toggleMoyuStealth); moyuRegisteredAccelerator = prev; } catch {}
+    }
+    if (!moyuRegisteredAccelerator) registerMoyuShortcut();
+  }
+  return {
+    ok: false,
+    reason: enabled ? "occupied" : "disabled",
+    pending: true,
+    accelerator: moyuRegisteredAccelerator,
+    hasCustomKey: true,
+  };
+});
+
 app.on("ready", () => {
   createMainWin();
+  registerMoyuShortcut();
 });
 app.on("before-quit", () => {
   isQuitting = true;
   destroyDiscordRPC();
+});
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 app.on("window-all-closed", () => {
   app.quit();

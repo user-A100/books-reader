@@ -1,3 +1,6 @@
+/* Hallmark · pre-emit critique: P5 H4 E4 S5 R5 V4
+ * genre: utilitarian · design-system: design.md · designed-as-app
+ */
 .book-sources-page {
   position: absolute;
   top: 70px;
@@ -8,6 +11,12 @@
   grid-template-columns: 280px minmax(0, 1fr);
   color: inherit;
   overflow: hidden;
+  /* Pin this page's theme tokens to neutral greys so focused fields, borders
+     and accents never render the brand/theme blue that the rest of the skin
+     may have set on these custom properties at runtime. */
+  --color-theme-color: rgba(75, 75, 75, 1);
+  --color-border: rgba(128, 128, 128, 0.28);
+  --color-hover: rgba(128, 128, 128, 0.1);
 }
 
 .book-source-rail {
@@ -148,7 +157,7 @@
 
 .book-source-search-row { display: flex; gap: 10px; }
 .book-source-search-row input { flex: 1; min-width: 0; height: 42px; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--color-border, rgba(128, 128, 128, 0.28)); background: transparent; color: inherit; padding: 0 14px; outline: none; }
-.book-source-search-row input:focus { border-color: var(--color-theme-color, #0179ca); box-shadow: 0 0 0 3px rgba(1, 121, 202, 0.1); }
+.book-source-search-row input:focus { border-color: var(--color-theme-color, #4b4b4b); }
 .book-source-search-row button { min-width: 122px; height: 42px; background: var(--color-theme-color, #0179ca); color: #fff; border: 0; }
 .book-source-search-row button span { margin-right: 7px; }
 .book-source-search-row button:disabled { opacity: 0.5; cursor: wait; }
@@ -202,11 +211,26 @@
 .book-source-editor-actions button:last-child { border: 0; background: var(--color-theme-color, #0179ca); color: #fff; }
 
 button:focus-visible,
-.book-source-card:focus-visible,
-.book-sources-page input:focus-visible,
-.book-sources-page textarea:focus-visible {
-  outline: 2px solid var(--color-theme-color, #0179ca);
+.book-source-card:focus-visible {
+  outline: 2px solid rgba(128, 128, 128, 0.55) !important;
   outline-offset: 2px;
+}
+
+/* Text fields: a quiet focus state instead of a loud brand-blue outline. */
+.book-sources-page input,
+.book-sources-page textarea {
+  outline: none;
+}
+.book-source-search-row input:focus,
+.book-source-editor textarea:focus {
+  /* Neutral focus — never the brand/theme blue, regardless of --color-theme-color. */
+  border-color: rgba(128, 128, 128, 0.55) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.book-sources-page input::selection,
+.book-sources-page textarea::selection {
+  background: rgba(128, 128, 128, 0.22) !important;
 }
 
 @media (max-width: 900px) {
@@ -229,3 +253,26 @@ button:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .book-source-loading span { animation: none; }
 }
+
+/* Books app alignment */
+.book-source-rail { padding-top: 20px; }
+.book-source-rail h2 { font-size: 20px; font-weight: 600; }
+.book-source-header { align-items: flex-start; }
+.book-source-header h1 { font-size: 24px; font-weight: 600; }
+.book-source-address { max-width: 560px; margin: 6px 0 0; overflow: hidden; font-size: 11px; opacity: .5; text-overflow: ellipsis; white-space: nowrap; }
+.book-source-icon-button { border-radius: 5px; }
+.book-source-import-actions { margin-top: 16px; }
+.book-source-import-actions button, .book-source-search-row button, .book-source-detail button, .book-source-editor-actions button { border-radius: 5px; }
+.book-source-card { border-radius: 6px; background: transparent; }
+.book-source-card.active { background: var(--color-hover, rgba(128, 128, 128, .08)); box-shadow: none; }
+.book-source-schema-badge { border-radius: 5px; }
+.book-source-flow { margin: 22px 0 18px; }
+.book-source-flow > div > span { width: 20px; height: 20px; border-radius: 4px; }
+.book-source-search-row input { height: 39px; border-radius: 5px; }
+.book-source-search-row input:focus { box-shadow: none; }
+.book-source-search-row button { height: 39px; }
+.book-source-results button, .book-source-cover, .book-source-detail-grid > img { border-radius: 5px; }
+.book-source-section-title > span { width: auto; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 4px; }
+.book-source-editor { border-radius: 8px; box-shadow: 0 4px 18px rgba(0, 0, 0, .2); }
+.book-source-modal { backdrop-filter: none; }
+.book-source-editor textarea, .book-source-error { font-family: inherit; }

@@ -5,6 +5,7 @@ import SliderList from "../../../components/readerSettings/sliderList";
 import DropdownList from "../../../components/readerSettings/dropdownList";
 import ModeControl from "../../../components/readerSettings/modeControl";
 import SettingSwitch from "../../../components/readerSettings/settingSwitch";
+import SettingSearch from "../../../components/readerSettings/settingSearch/component";
 import SymbolColorRules from "../../../components/readerSettings/symbolColorRules/component";
 import ReaderBackgroundControl from "../../../components/readerSettings/readerBackgroundControl/component";
 import { SettingPanelProps, SettingPanelState } from "./interface";
@@ -96,6 +97,10 @@ class SettingPanel extends React.Component<
         <div className="setting-panel-title">
           <Trans>Reading option</Trans>
         </div>
+        <SettingSearch
+          currentBook={this.props.currentBook}
+          t={this.props.t}
+        />
         <div className="setting-panel">
           <ModeControl />
           <ThemeList />

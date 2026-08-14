@@ -21,6 +21,8 @@ const mapStateToProps = (state: stateType) => {
     shelfTitle: state.sidebar.shelfTitle,
     isAuthed: state.manager.isAuthed,
     isOpenSortShelfDialog: state.backupPage.isOpenSortShelfDialog,
+    books: state.manager.books,
+    importBookFunc: state.book.importBookFunc,
   };
 };
 const actionCreator = {
