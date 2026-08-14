@@ -1,20 +1,62 @@
 .sidebar {
   width: 190px;
   height: 100%;
+  position: relative;
 }
 
-.logo {
-  width: 125px;
+.sidebar-logo-toggle {
+  width: 150px;
+  height: 55px;
   position: absolute;
   top: 15px;
-  left: 70px;
+  left: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+.sidebar-logo-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.sidebar-logo-toggle.is-collapsed {
+  width: 70px;
+  overflow: hidden;
+}
+.sidebar-logo-toggle.is-collapsed .sidebar-logo-title {
+  display: none;
+}
+.sidebar-logo-mark {
+  width: 40px;
+  height: 42px;
+  flex: 0 0 40px;
+  margin-left: 14px;
+  overflow: hidden;
+  display: block;
+}
+.sidebar-logo-mark img {
+  display: block;
+  width: 125px;
+  max-width: none;
+  height: auto;
+}
+.sidebar-logo-title {
+  margin-left: 6px;
+  color: inherit;
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -1.2px;
 }
 .side-menu-container-parent {
   position: relative;
   top: 85px;
   width: 210px;
-  height: calc(100% - 145px);
+  height: calc(100% - 190px);
   overflow-x: hidden;
   overflow-y: scroll;
 }
@@ -40,30 +82,8 @@
   width: 2px;
   height: 0.5rem;
 }
-.sidebar-list {
-  margin-right: 5px;
-  font-size: 22px;
-}
-.sidebar-list-icon {
-  width: 45px;
-  height: 50px;
-  position: absolute;
-  top: 20px !important;
-  left: 10px;
-  cursor: pointer;
-  font-size: 20px;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding-left: 5px;
-  transition: 0.2s;
-}
 .sidebar-shelf-icon {
   font-size: 19px;
-}
-.sidebar-list-icon:hover {
-  border-radius: 50%;
 }
 .side-menu-container {
   /* overflow: hidden; */
@@ -81,7 +101,7 @@
 }
 @media screen and (max-width: 950px) {
   .side-menu-container-parent {
-    height: calc(100% - 155px);
+    height: calc(100% - 200px);
   }
 }
 .side-menu-icon {
@@ -92,6 +112,20 @@
   justify-content: center;
   align-items: center;
   width: 30px;
+}
+
+/* Inline SVG variant (e.g. the Community plugins puzzle icon) — must match
+ * the font glyph slot so collapsed/expanded layouts stay aligned. */
+.side-menu-svg {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 22px;
+  height: 22px;
+  opacity: 0.72;
+}
+.side-menu-item.active .side-menu-svg {
+  opacity: 1;
 }
 
 .side-menu-item {
@@ -219,6 +253,64 @@
 .side-menu-about {
   position: absolute;
   bottom: 0px;
+}
+.sidebar-footer {
+  --color-sidebar-footer-hover: color-mix(in srgb, currentColor 9%, transparent);
+  --color-sidebar-footer-focus: color-mix(in srgb, currentColor 58%, transparent);
+  width: 190px;
+  position: absolute;
+  z-index: 70;
+  left: 0;
+  bottom: 0;
+}
+.sidebar-footer.is-collapsed {
+  width: 70px;
+}
+.sidebar-stats-row {
+  height: 39px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.sidebar-stats-row:hover {
+  background: var(--color-sidebar-footer-hover);
+}
+.sidebar-stats-row:focus-visible {
+  outline: 2px solid var(--color-sidebar-footer-focus);
+  outline-offset: -2px;
+}
+.sidebar-stats-row:active {
+  transform: translateY(1px);
+}
+.sidebar-footer-icon {
+  width: 30px;
+  margin: 0 10px 0 20px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+.sidebar-footer-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+}
+.sidebar-footer.is-collapsed .sidebar-stats-row {
+  justify-content: center;
+}
+.sidebar-footer.is-collapsed .sidebar-footer-icon {
+  margin: 0;
+}
+.sidebar-footer.is-collapsed .sidebar-footer-label {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-stats-row:active {
+    transform: none;
+  }
 }
 .dropdown-icon-container {
   display: inline-block;

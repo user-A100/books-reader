@@ -27,6 +27,7 @@
     "buffer": "^6.0.3",
     "chardet": "^2.0.0",
     "cheerio": "1.2.0",
+    "chokidar": "^4.0.3",
     "color-thief-browser": "^2.0.2",
     "copy-text-to-clipboard": "^2.2.0",
     "crypto-js": "^4.2.0",
@@ -127,6 +128,7 @@
       "build/**/*",
       "node_modules/**/*",
       "package.json",
+      "src/services/folderLibrary/**/*",
       "src/assets/lib/kookit-extra.min.mjs",
       "main.js",
       "preload.js"

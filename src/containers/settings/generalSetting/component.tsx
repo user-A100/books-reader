@@ -14,6 +14,46 @@ import toast from "react-hot-toast";
 import { ConfigService } from "../../../assets/lib/kookit-extra-browser.min";
 
 declare var window: any;
+
+// Maps a native DOM KeyboardEvent to the "key" token of an Electron accelerator
+// (code "KeyA" → "A", "Backquote" → "`", "F5" → "F5", "ArrowLeft" → "Left").
+// Returns null for keys we don't accept as a shortcut trigger; lone modifier
+// presses are filtered out by the caller before this runs.
+const acceleratorKeyFromEvent = (event: KeyboardEvent): string | null => {
+  const code = event.code || "";
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) return code;
+  const map: Record<string, string> = {
+    Backquote: "`",
+    Minus: "-",
+    Equal: "=",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Backslash: "\\",
+    Semicolon: ";",
+    Quote: "'",
+    Comma: ",",
+    Period: ".",
+    Slash: "/",
+    Space: "Space",
+    Enter: "Return",
+    Tab: "Tab",
+    Backspace: "Backspace",
+    Insert: "Insert",
+    Delete: "Delete",
+    Home: "Home",
+    End: "End",
+    PageUp: "PageUp",
+    PageDown: "PageDown",
+    ArrowUp: "Up",
+    ArrowDown: "Down",
+    ArrowLeft: "Left",
+    ArrowRight: "Right",
+  };
+  return map[code] || null;
+};
+
 class GeneralSetting extends React.Component<
   SettingInfoProps,
   SettingInfoState
@@ -57,8 +97,54 @@ class GeneralSetting extends React.Component<
       isDisablePDFCover:
         ConfigService.getReaderConfig("isDisablePDFCover") === "yes",
       startupShelf: ConfigService.getReaderConfig("startupShelf") || "",
+      isMoyu: true,
+      moyuAccelerator: "Ctrl+`",
+      isRecordingHotkey: false,
+      hasCustomHotkey: false,
+      hotkeyError: "",
     };
   }
+
+  async componentDidMount() {
+    if (!isElectron) return;
+    try {
+      const { ipcRenderer } = window.require("electron");
+      const config = await ipcRenderer.invoke("moyu-get-config");
+      if (config) {
+        this.setState({
+          isMoyu: config.enabled,
+          moyuAccelerator: this.formatMoyuAccelerator(config.accelerator),
+          hasCustomHotkey: !!config.hasCustomKey,
+        });
+      }
+    } catch {
+      // moyu config lives in the main process; ignore if unavailable
+    }
+  }
+
+  // Display-friendly form of an Electron accelerator: Control → Ctrl,
+  // CommandOrControl → Ctrl (matches how the hotkey is described to users).
+  formatMoyuAccelerator = (accelerator: string) =>
+    (accelerator || "Ctrl+`")
+      .replace(/CommandOrControl/g, "Ctrl")
+      .replace(/\bSuper\b/g, "Win")
+      .replace(/\bMeta\b/g, "Win")
+      .replace(/\bControl\b/g, "Ctrl");
+
+  handleMoyu = async () => {
+    if (!isElectron) return;
+    try {
+      const { ipcRenderer } = window.require("electron");
+      const res = await ipcRenderer.invoke(
+        "moyu-set-enabled",
+        !this.state.isMoyu
+      );
+      this.setState({ isMoyu: res ? res.enabled : !this.state.isMoyu });
+      this.handleRest(!this.state.isMoyu);
+    } catch {
+      // ignore
+    }
+  };
 
   handleRest = (_bool: boolean) => {
     toast.success(this.props.t("Change successful"));
@@ -186,6 +272,44 @@ class GeneralSetting extends React.Component<
     return (
       <>
         {this.renderSwitchOption(generalSettingList)}
+
+        {isElectron && (
+          <div key="isMoyu">
+            <div className="setting-dialog-new-title">
+              <span style={{ width: "calc(100% - 100px)" }}>
+                <Trans>Slacking-off mode</Trans>
+              </span>
+              <span
+                className="single-control-switch"
+                onClick={this.handleMoyu}
+                style={this.state.isMoyu ? {} : { opacity: 0.6 }}
+              >
+                <span
+                  className="single-control-button"
+                  style={
+                    this.state.isMoyu
+                      ? {
+                          transform: "translateX(20px)",
+                          transition: "transform 0.5s ease",
+                        }
+                      : {
+                          transform: "translateX(0px)",
+                          transition: "transform 0.5s ease",
+                        }
+                  }
+                ></span>
+              </span>
+            </div>
+            <p className="setting-option-subtitle">
+              <Trans>
+                Instantly hide every Books window and its taskbar/dock icon;
+                press the hotkey again to restore.
+              </Trans>
+              <br />
+              <Trans>Hotkey</Trans>: <code>{this.state.moyuAccelerator}</code>
+            </p>
+          </div>
+        )}
 
         <div className="setting-dialog-new-title">
           <Trans>Reset main window's position</Trans>

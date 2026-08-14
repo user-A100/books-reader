@@ -75,7 +75,7 @@ class SliderList extends React.Component<SliderListProps, SliderListState> {
   };
   render() {
     return (
-      <div className="font-size-setting">
+      <div className="font-size-setting" data-search-key={this.props.item.mode}>
         <div className="font-size-title">
           <span style={{ marginRight: "10px" }}>
             <Trans>{this.props.item.title}</Trans>

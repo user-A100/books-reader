@@ -26,7 +26,10 @@ import {
   clearDiscordPresence,
 } from "../../utils/reader/discordRPC";
 import SupportDialog from "../../components/dialogs/supportDialog";
-import { READING_PANEL_TOGGLE_EVENT } from "../../utils/reader/mouseEvent";
+import {
+  READING_PANEL_TOGGLE_EVENT,
+  SETTING_SEARCH_FOCUS_EVENT,
+} from "../../utils/reader/mouseEvent";
 import { throttle } from "../../utils/common";
 declare var window: any;
 let lock = false; //prevent from clicking too fasts
@@ -115,6 +118,7 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
         ConfigService.getReaderConfig("isPreventTrigger") === "yes",
       isShowScale: false,
       isNearEdge: false,
+      isSearchActive: false,
     };
   }
   componentDidMount() {
@@ -151,6 +155,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
     window.addEventListener(
       READING_PANEL_TOGGLE_EVENT,
       this.handleReadingPanelToggle
+    );
+    window.addEventListener(
+      SETTING_SEARCH_FOCUS_EVENT,
+      this.handleSettingSearchFocus
     );
 
     // 进入阅读器后主动展示快捷按钮 3 秒，提示用户位置后自动隐藏
@@ -217,6 +225,10 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       READING_PANEL_TOGGLE_EVENT,
       this.handleReadingPanelToggle
     );
+    window.removeEventListener(
+      SETTING_SEARCH_FOCUS_EVENT,
+      this.handleSettingSearchFocus
+    );
     if (isElectron) {
       clearDiscordPresence();
     }
@@ -260,6 +272,12 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
   };
 
   scheduleLeaveReader = (position: string) => {
+    // While the setting search box is focused (user is typing), keep the
+    // right panel open — don't even arm the leave timer, otherwise the
+    // panel retracts mid-typing and the user's input is lost.
+    if (position === "right" && this.state.isSearchActive) {
+      return;
+    }
     this.cancelLeaveReader(position);
     leaveTimers[position] = setTimeout(() => {
       leaveTimers[position] = null;
@@ -353,6 +371,17 @@ class Reader extends React.Component<ReaderProps, ReaderState> {
       this.handleLeaveReader(position);
     } else {
       this.handleEnterReader(position);
+    }
+  };
+  handleSettingSearchFocus = (event: Event) => {
+    const focused = (event as CustomEvent<{ focused: boolean }>).detail
+      ?.focused;
+    if (focused) {
+      // cancel any pending leave so typing doesn't trigger retraction
+      this.cancelLeaveReader("right");
+      this.setState({ isSearchActive: true });
+    } else {
+      this.setState({ isSearchActive: false });
     }
   };
   handleLocation = () => {

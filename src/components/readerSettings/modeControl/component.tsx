@@ -28,7 +28,7 @@ class ModeControl extends React.Component<ModeControlProps, ModeControlState> {
   };
   render() {
     return (
-      <div className="background-color-setting">
+      <div className="background-color-setting" data-search-key="readerMode">
         <div
           className="background-color-text"
           style={{ position: "relative", bottom: "15px" }}

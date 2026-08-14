@@ -236,7 +236,10 @@ class DropdownList extends React.Component<
         })
         .map((item) => (
           <React.Fragment key={item.value}>
-            <li className="paragraph-character-container">
+            <li
+              className="paragraph-character-container"
+              data-search-key={item.value}
+            >
               <p className="general-setting-title">
                 <Trans>{item.title}</Trans>
               </p>
@@ -304,7 +307,10 @@ class DropdownList extends React.Component<
             {item.value === "fullTranslationMode" &&
               (this.state.fullTranslationModeValue === "both" ||
                 this.state.fullTranslationModeValue === "target") && (
-                <li className="paragraph-character-container">
+                <li
+                  className="paragraph-character-container"
+                  data-search-key="fullTranslationTarget"
+                >
                   <p className="general-setting-title">
                     <Trans>Target translation language</Trans>
                   </p>
@@ -350,7 +356,10 @@ class DropdownList extends React.Component<
       <ul className="paragraph-character-setting">
         {renderParagraphCharacter()}
         {isTxt && (
-          <li className="paragraph-character-container">
+          <li
+            className="paragraph-character-container"
+            data-search-key="txtParser"
+          >
             <p className="general-setting-title">
               <Trans>TXT parser</Trans>
             </p>

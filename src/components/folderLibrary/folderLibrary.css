@@ -1,0 +1,337 @@
+/* Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V4
+ * component: sidebar vault switcher · genre: utilitarian · design-system: design.md
+ * states: default · hover · focus · active · disabled · loading · error · success
+ */
+.folder-library {
+  --color-library-surface: oklch(98.5% 0.004 80 / 0.98);
+  --color-library-surface-raised: oklch(100% 0 0 / 0.98);
+  --color-library-hover: oklch(45% 0.01 80 / 0.1);
+  --color-library-rule: oklch(45% 0.01 80 / 0.22);
+  --color-library-muted: oklch(45% 0.01 80 / 0.68);
+  --color-library-focus: oklch(52% 0.13 250);
+  --color-library-error: oklch(53% 0.19 28);
+  --color-library-success: oklch(55% 0.13 150);
+  --color-library-shadow: oklch(20% 0.01 245 / 0.16);
+  position: relative;
+  width: 100%;
+  color: inherit;
+}
+
+.folder-library.is-night {
+  --color-library-surface: oklch(31% 0.01 245 / 0.98);
+  --color-library-surface-raised: oklch(35% 0.01 245 / 0.98);
+  --color-library-hover: oklch(92% 0.004 245 / 0.1);
+  --color-library-rule: oklch(92% 0.004 245 / 0.2);
+  --color-library-muted: oklch(88% 0.004 245 / 0.68);
+  --color-library-focus: oklch(72% 0.12 245);
+  --color-library-error: oklch(72% 0.16 28);
+  --color-library-success: oklch(72% 0.12 150);
+  --color-library-shadow: oklch(10% 0.01 245 / 0.34);
+}
+
+.folder-library button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.folder-library button:hover {
+  background: var(--color-library-hover);
+}
+
+.folder-library button:focus-visible {
+  outline: 2px solid var(--color-library-focus);
+  outline-offset: -2px;
+}
+
+.folder-library button:active {
+  transform: translateY(1px);
+}
+
+.folder-library button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.folder-library-switcher {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: center;
+  border-top: 1px solid var(--color-library-rule);
+  background: var(--color-library-surface);
+}
+
+.folder-library-identity {
+  min-width: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 16px;
+  border-radius: 0;
+  text-align: left;
+}
+
+.folder-library-vault-icon {
+  width: 16px;
+  height: 22px;
+  flex: 0 0 16px;
+  color: var(--color-library-muted);
+}
+
+.folder-library-vault-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.folder-library-current-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.folder-library-current-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+
+.folder-library-current-location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-library-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.folder-library-manage {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-control, 5px);
+  color: var(--color-library-muted);
+}
+
+.folder-library-manage svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.folder-library-popover {
+  position: absolute;
+  z-index: 90;
+  left: 8px;
+  right: 8px;
+  bottom: 56px;
+  max-height: min(58vh, 520px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-library-rule);
+  border-radius: var(--radius-dialog, 8px);
+  background: var(--color-library-surface-raised);
+  box-shadow: 0 12px 32px var(--color-library-shadow);
+}
+
+.folder-library-heading {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--color-library-rule);
+}
+
+.folder-library-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.folder-library-actions {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 168px;
+  height: 28px;
+  display: grid;
+  grid-template-columns: repeat(6, 28px);
+  align-items: center;
+  white-space: nowrap;
+}
+
+.folder-library-actions button {
+  box-sizing: border-box;
+  flex: 0 0 28px;
+  width: 28px !important;
+  min-width: 0 !important;
+  max-width: 28px;
+  height: 28px !important;
+  min-height: 0 !important;
+  margin: 0;
+  padding: 0 !important;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: var(--radius-control, 5px);
+  color: var(--color-library-muted);
+}
+
+.folder-library-actions button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.folder-library-root,
+.folder-library-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 6px;
+  padding: 0 8px;
+  border-radius: var(--radius-control, 5px);
+  cursor: pointer;
+  user-select: none;
+}
+
+.folder-library-root {
+  min-height: 32px;
+  padding-left: 8px;
+  font-weight: 600;
+}
+
+.folder-library-row {
+  height: 28px;
+}
+
+.folder-library-root:hover,
+.folder-library-row:hover,
+.folder-library-root.selected,
+.folder-library-row.selected {
+  background: var(--color-library-hover);
+}
+
+.folder-library-tree {
+  min-height: 0;
+  max-height: 44vh;
+  margin: 0;
+  padding: 0 0 8px;
+  overflow: auto;
+  list-style: none;
+}
+
+.folder-library-chevron,
+.folder-library-fileicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.folder-library-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--color-library-muted);
+}
+
+.folder-library-chevron svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.folder-library-fileicon {
+  width: 18px;
+  height: 18px;
+  color: var(--color-library-muted);
+}
+
+.folder-library-fileicon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.folder-library-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-library-empty,
+.folder-library-error {
+  margin: 4px 12px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.folder-library-empty {
+  color: var(--color-library-muted);
+}
+
+.folder-library-error {
+  color: var(--color-library-error);
+}
+
+.folder-library.is-loading .folder-library-vault-icon {
+  opacity: 0.55;
+}
+
+.folder-library.is-error .folder-library-switcher {
+  box-shadow: inset 3px 0 0 var(--color-library-error);
+}
+
+.folder-library.is-success .folder-library-switcher {
+  box-shadow: inset 3px 0 0 var(--color-library-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folder-library button:active {
+    transform: none;
+  }
+}

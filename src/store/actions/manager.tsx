@@ -205,8 +205,22 @@ export function handleFetchBooks() {
     }
 
     let deletedBookKeys = ConfigService.getAllListConfig("deletedBooks");
+    let suppressedBookKeys = new Set<string>();
+    try {
+      const suppressionMap = JSON.parse(
+        ConfigService.getItem("folderLibrarySuppressedBooks") || "{}"
+      );
+      Object.values(suppressionMap).forEach((keys) => {
+        if (Array.isArray(keys)) {
+          keys.forEach((key) => suppressedBookKeys.add(String(key)));
+        }
+      });
+    } catch (error) {
+      console.error("Invalid folder library suppression index", error);
+    }
     let books = bookList.filter(
-      (item: { key: string }) => !deletedBookKeys.includes(item.key)
+      (item: { key: string }) =>
+        !deletedBookKeys.includes(item.key) && !suppressedBookKeys.has(item.key)
     );
     dispatch(handleBooks(books as BookModel[]));
     dispatch(

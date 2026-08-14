@@ -265,7 +265,7 @@ class ThemeList extends React.Component<ThemeListProps, ThemeListState> {
         });
     };
     return (
-      <div className="background-color-setting">
+      <div className="background-color-setting" data-search-key="themeColor">
         <div
           className="background-color-text"
           style={{

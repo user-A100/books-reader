@@ -1,4 +1,5 @@
 import { RouteComponentProps } from "react-router";
+import Book from "../../models/Book";
 
 export interface SidebarProps extends RouteComponentProps<any> {
   mode: string;
@@ -6,6 +7,8 @@ export interface SidebarProps extends RouteComponentProps<any> {
   shelfTitle: string;
   isAuthed: boolean;
   isOpenSortShelfDialog: boolean;
+  books: Book[];
+  importBookFunc: (file: any) => Promise<void>;
   handleMode: (mode: string) => void;
   handleSortShelfDialog: (isOpenSortShelfDialog: boolean) => void;
   handleSearch: (isSearch: boolean) => void;

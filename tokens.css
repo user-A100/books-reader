@@ -1,0 +1,34 @@
+/* Books app design tokens — documentation/export; runtime skins remain authoritative. */
+:root {
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Cascadia Code", Consolas, monospace;
+
+  --space-3xs: 4px;
+  --space-2xs: 8px;
+  --space-xs: 12px;
+  --space-sm: 16px;
+  --space-md: 20px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 40px;
+
+  --text-xs: 10px;
+  --text-sm: 12px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-display: 28px;
+
+  --radius-control: 5px;
+  --radius-card: 6px;
+  --radius-dialog: 8px;
+  --radius-pill: 22px;
+
+  --dur-fast: 150ms;
+  --dur-normal: 200ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in: cubic-bezier(.32, 0, .67, 0);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+}

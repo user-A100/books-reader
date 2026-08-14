@@ -10,8 +10,10 @@ import {
 } from "../../models/BookSource";
 import {
   deleteBookSource,
+  getBookSourceCache,
   getBookSources,
   saveBookSource,
+  saveBookSourceCache,
   setBookSourceEnabled,
 } from "../../services/bookSource/sourceStorage";
 import { parseBookSourceJson } from "../../services/bookSource/sourceValidation";
@@ -88,14 +90,16 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
   constructor(props: BookSourcesProps) {
     super(props);
     const sources = getBookSources();
+    const selectedSourceId = sources[0]?.id || "";
+    const cache = selectedSourceId ? getBookSourceCache(selectedSourceId) : null;
     this.state = {
       sources,
-      selectedSourceId: sources[0]?.id || "",
-      keyword: "",
-      results: [],
-      detail: null,
-      chapters: [],
-      content: null,
+      selectedSourceId,
+      keyword: cache?.keyword || "",
+      results: cache?.results || [],
+      detail: cache?.detail || null,
+      chapters: cache?.chapters || [],
+      content: cache?.content || null,
       isImporting: false,
       importText: "",
       isLoading: false,
@@ -111,6 +115,21 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
       ) || null
     );
   }
+
+  // Persist the current inspector state as the selected source's snapshot, so
+  // reopening the page (or switching back to this source) restores it instead
+  // of going blank. Called after every successful fetch.
+  persistCache = () => {
+    const id = this.state.selectedSourceId;
+    if (!id) return;
+    saveBookSourceCache(id, {
+      keyword: this.state.keyword,
+      results: this.state.results,
+      detail: this.state.detail,
+      chapters: this.state.chapters,
+      content: this.state.content,
+    });
+  };
 
   refreshSources = (preferredId?: string) => {
     const sources = getBookSources();
@@ -133,8 +152,19 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
     });
   };
 
+  // Restore a source's last snapshot when selected, so previously fetched
+  // books reappear instead of the page going blank.
   handleSelectSource = (sourceId: string) => {
-    this.setState({ selectedSourceId: sourceId }, this.resetInspector);
+    const cache = getBookSourceCache(sourceId);
+    this.setState({
+      selectedSourceId: sourceId,
+      keyword: cache?.keyword || "",
+      results: cache?.results || [],
+      detail: cache?.detail || null,
+      chapters: cache?.chapters || [],
+      content: cache?.content || null,
+      error: "",
+    });
   };
 
   handleToggleSource = (source: BookSource) => {
@@ -221,7 +251,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
     }
     this.runTask(this.props.t("Searching..."), async () => {
       const results = await searchBookSource(source, keyword);
-      this.setState({ results, detail: null, chapters: [], content: null });
+      this.setState({ results, detail: null, chapters: [], content: null }, this.persistCache);
     });
   };
 
@@ -230,7 +260,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
     if (!source) return;
     this.runTask(this.props.t("Loading book detail..."), async () => {
       const detail = await fetchBookSourceDetail(source, summary);
-      this.setState({ detail, chapters: [], content: null });
+      this.setState({ detail, chapters: [], content: null }, this.persistCache);
     });
   };
 
@@ -240,7 +270,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
     if (!source || !detail) return;
     this.runTask(this.props.t("Loading chapters..."), async () => {
       const chapters = await fetchBookSourceChapters(source, detail);
-      this.setState({ chapters, content: null });
+      this.setState({ chapters, content: null }, this.persistCache);
     });
   };
 
@@ -249,7 +279,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
     if (!source) return;
     this.runTask(this.props.t("Loading chapter..."), async () => {
       const content = await fetchBookSourceContent(source, chapter);
-      this.setState({ content });
+      this.setState({ content }, this.persistCache);
     });
   };
 
@@ -257,9 +287,6 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
     <aside className="book-source-rail">
       <div className="book-source-rail-heading">
         <div>
-          <p className="book-source-eyebrow">
-            <Trans>Source workshop</Trans>
-          </p>
           <h2>
             <Trans>Book Sources</Trans>
           </h2>
@@ -367,10 +394,8 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
       <main className="book-source-workspace">
         <header className="book-source-header">
           <div>
-            <p className="book-source-eyebrow">
-              {this.selectedSource?.baseUrl || this.props.t("Declarative source rules")}
-            </p>
             <h1>{this.selectedSource?.name || this.props.t("Build your first source")}</h1>
+            {this.selectedSource?.baseUrl && <p className="book-source-address">{this.selectedSource.baseUrl}</p>}
           </div>
           {this.selectedSource && (
             <span className="book-source-schema-badge">Schema v1 · CSS</span>
@@ -472,7 +497,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
       <div className="book-source-modal" role="dialog" aria-modal="true">
         <div className="book-source-editor">
           <div className="book-source-editor-title">
-            <div><p className="book-source-eyebrow">JSON · Schema v1</p><h2><Trans>Import book source</Trans></h2></div>
+            <div><h2><Trans>Import book source</Trans></h2></div>
             <button onClick={() => this.setState({ isImporting: false })}><span className="icon-close" /></button>
           </div>
           <p><Trans>Selectors use the form “.title@text” or “a@href”. JavaScript is not executed.</Trans></p>

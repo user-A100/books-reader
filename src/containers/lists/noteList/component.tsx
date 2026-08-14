@@ -8,6 +8,7 @@ import { Trans } from "react-i18next";
 import ConfigUtil from "../../../utils/file/configUtil";
 import BookUtil from "../../../utils/file/bookUtil";
 import Note from "../../../models/Note";
+import { getWereReadShelfNamesMap } from "../../../services/onlineLibrary/wereadSyncStorage";
 
 class NoteList extends React.Component<NoteListProps, NoteListState> {
   constructor(props: NoteListProps) {
@@ -52,8 +53,11 @@ class NoteList extends React.Component<NoteListProps, NoteListState> {
   handleNamesMap = async (notes: Note[]) => {
     let uniqueBookKeys = Array.from(new Set(notes.map((note) => note.bookKey)));
     let map = await BookUtil.getBookNamesMapByKeys(uniqueBookKeys);
-
-    this.setState({ bookNamesMap: map });
+    // WeRead-synced notes use a "weread-{bookId}" bookKey that has no row in the
+    // books table, so merge in their shelf titles to avoid blank book names.
+    this.setState({
+      bookNamesMap: { ...getWereReadShelfNamesMap(), ...map },
+    });
   };
   handleTag = async (tag: string[]) => {
     if (tag.length === 0) {

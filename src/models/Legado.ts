@@ -29,6 +29,16 @@ export interface LegadoChapter {
   url: string;
 }
 
+// A Legado book whose metadata + chapter list + chapter contents have been
+// cached locally, so it can be browsed and read without the phone connected.
+export interface LegadoCachedBook extends LegadoBook {
+  serverId: string;
+  serverName: string;
+  chapters: LegadoChapter[];
+  cachedAt: number;
+  cachedCount: number;
+}
+
 export interface LegadoProgress {
   chapterIndex: number;
   chapterPos: number;

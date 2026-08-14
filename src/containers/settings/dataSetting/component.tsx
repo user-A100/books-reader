@@ -41,7 +41,10 @@ class DataSetting extends React.Component<SettingInfoProps, SettingInfoState> {
   constructor(props: SettingInfoProps) {
     super(props);
     this.state = {
-      storageLocation: getStorageLocation() || "",
+      // The folder library is the active library shown in the sidebar. Use
+      // it as the source of truth instead of the legacy app data location.
+      storageLocation:
+        ConfigService.getItem("folderLibraryPath") || getStorageLocation() || "",
       snapshotList: [],
       exportNotesFormat: "",
       exportHighlightsFormat: "",
@@ -76,7 +79,9 @@ class DataSetting extends React.Component<SettingInfoProps, SettingInfoState> {
       });
     }
     if (isElectron) {
+      const libraryPath = ConfigService.getItem("folderLibraryPath");
       this.setState({
+        storageLocation: libraryPath || this.state.storageLocation,
         snapshotList: getSnapshots(),
       });
     }
@@ -448,7 +453,10 @@ class DataSetting extends React.Component<SettingInfoProps, SettingInfoState> {
 
   handleChangeLocation = async () => {
     const { ipcRenderer } = window.require("electron");
-    const newPath = await ipcRenderer.invoke("select-path");
+    // The folder-library path is the user's active book library. Reuse it so
+    // storage settings stay in sync with the library switcher.
+    const libraryPath = ConfigService.getItem("folderLibraryPath");
+    const newPath = libraryPath || (await ipcRenderer.invoke("select-path"));
     if (!newPath) {
       return;
     }

@@ -7,6 +7,7 @@ import WebNavigator from "../pages/webNavigator";
 import OnlineLibrary from "../pages/onlineLibrary";
 import WeRead from "../pages/weRead";
 import Legado from "../pages/legado";
+import Plugins from "../pages/plugins";
 
 export const routes = [
   { path: "/manager/empty", component: EmptyPage },
@@ -21,4 +22,5 @@ export const routes = [
   { path: "/manager/weread", component: WeRead },
   { path: "/manager/legado", component: Legado },
   { path: "/manager/web", component: WebNavigator },
+  { path: "/manager/plugins", component: Plugins },
 ];

@@ -1,5 +1,8 @@
+/* Hallmark · pre-emit critique: P5 H4 E4 S5 R5 V4
+ * genre: utilitarian · design-system: design.md · designed-as-app
+ */
 .online-library-page {
-  --library-sky: #64b5dc;
+  --library-sky: var(--color-theme-color, rgba(75, 75, 75, 1));
   --library-ink: #4d535c;
   --library-rule: rgba(91, 104, 119, 0.18);
   position: absolute;
@@ -53,7 +56,7 @@
   border-bottom: 2px solid var(--library-rule);
   transition: border-color .18s ease;
 }
-.online-library-search:focus-within { border-color: var(--library-sky); }
+.online-library-search:focus-within { border-color: var(--library-rule); }
 .online-library-search input {
   flex: 1;
   min-width: 0;
@@ -102,7 +105,7 @@
   cursor: pointer;
   font-size: 10px;
 }
-.online-library-catalog-actions button:hover { border-color: var(--library-sky); background: rgba(100, 181, 220, .08); }
+.online-library-catalog-actions button:hover { border-color: var(--library-sky); background: var(--color-hover, rgba(128, 128, 128, 0.08)); }
 .online-library-catalog-actions button span { margin-right: 4px; }
 .online-library-catalog-actions small { font-size: 9px; opacity: .38; }
 .online-library-source-dock {
@@ -122,7 +125,7 @@
 .online-library-source-dock > header > button { width: 29px; height: 29px; border: 1px solid var(--library-rule); border-radius: 50%; background: transparent; color: inherit; cursor: pointer; font-size: 11px; }
 .online-library-source-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 13px; }
 .online-library-source-card { min-width: 0; display: grid; grid-template-columns: 25px minmax(0, 1fr); grid-template-areas: "icon copy" "kind kind"; gap: 3px 8px; padding: 10px; border: 1px solid var(--library-rule); border-radius: 7px; background: rgba(255, 255, 255, .22); color: inherit; text-align: left; cursor: pointer; }
-.online-library-source-card:hover { border-color: var(--library-sky); background: rgba(100, 181, 220, .1); }
+.online-library-source-card:hover { border-color: var(--library-sky); background: var(--color-hover, rgba(128, 128, 128, 0.1)); }
 .online-library-source-card:disabled { cursor: default; opacity: .42; }
 .online-library-source-card:disabled:hover { border-color: var(--library-rule); background: rgba(255, 255, 255, .22); }
 .online-library-source-icon { grid-area: icon; align-self: center; color: var(--library-sky); font: 500 20px/1 Georgia, serif; }
@@ -131,7 +134,7 @@
 .online-library-source-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .online-library-source-copy strong { font-size: 10px; }
 .online-library-source-copy small { margin-top: 3px; font-size: 8px; opacity: .45; }
-.online-library-source-kind { grid-area: kind; width: fit-content; padding: 2px 4px; border-radius: 3px; background: rgba(100, 181, 220, .1); color: var(--library-sky); font: 7px/1 Consolas, monospace; text-transform: uppercase; }
+.online-library-source-kind { grid-area: kind; width: fit-content; padding: 2px 4px; border-radius: 3px; background: var(--color-hover, rgba(128, 128, 128, 0.1)); color: var(--library-sky); font: 7px/1 Consolas, monospace; text-transform: uppercase; }
 .online-library-source-card.web .online-library-source-kind { color: #6b9d78; background: rgba(107, 157, 120, .1); }
 .online-library-source-dock > footer { justify-content: flex-start; padding-top: 10px; border-top: 1px solid var(--library-rule); }
 .online-library-source-dock > footer button { border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; font-size: 9px; opacity: .62; }
@@ -288,3 +291,38 @@
   .online-library-book-meta button i,
   .online-library-state > i { animation: none; }
 }
+
+/* Books app alignment: quiet, functional, and theme-driven. */
+.online-library-page { inset: auto; top: 70px; left: 220px; width: calc(100vw - 220px); height: calc(100vh - 108px); background: transparent; }
+@media (max-width: 760px) {
+  .online-library-page { left: 70px; width: calc(100vw - 70px); }
+}
+.online-library-landing { width: min(980px, calc(100% - 56px)); align-items: stretch; padding: 28px 0 72px; text-align: left; }
+.online-library-landing > h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.25; }
+.online-library-landing > p { margin: 8px 0 22px; letter-spacing: 0; }
+.online-library-search { width: min(620px, 100%); height: 42px; box-sizing: border-box; border: 0; border-radius: 22px; background: var(--color-hover, rgba(128, 128, 128, .1)); padding-left: 12px; }
+.online-library-search:focus-within { box-shadow: 0 0 0 1px var(--color-theme-color, rgba(75, 75, 75, .45)); }
+.online-library-search input { padding-left: 4px; font-size: 15px; text-align: left; }
+.online-library-search-hint { margin-left: 12px; }
+.online-library-catalog-actions { display: flex; align-items: center; gap: 12px; }
+.online-library-catalog-actions button { justify-self: auto; border-radius: 5px; }
+.online-library-source-dock { width: 100%; margin-top: 26px; background: transparent; }
+.online-library-source-dock > header strong { font: inherit; font-size: 16px; font-weight: 600; }
+.online-library-source-card { background: transparent; }
+.online-library-source-kind { font-family: inherit; text-transform: none; }
+.online-library-featured { width: 100%; margin-top: 32px; }
+.online-library-featured > header span { font-size: 16px; font-weight: 600; letter-spacing: 0; opacity: 1; }
+.online-library-mini-cover::after, .online-library-cover::before { display: none; }
+.online-library-mini-cover, .online-library-cover { box-shadow: 0 2px 6px rgba(0, 0, 0, .12); }
+.online-library-mini-cover strong, .online-library-cover strong, .online-library-mini-cover em, .online-library-cover em, .online-library-book-meta small { font-family: inherit; }
+.online-library-landing > footer { position: static; margin-top: 32px; }
+.online-library-landing footer strong { font: inherit; font-size: 11px; font-weight: 600; letter-spacing: 0; }
+.online-library-results-page { padding-top: 28px; }
+.online-library-results-page > header { grid-template-columns: 36px 140px minmax(240px, 560px); }
+.online-library-results-page > header h2 { margin: 0; font-size: 18px; }
+.online-library-results-heading { margin-top: 32px; }
+.online-library-results-heading h1 { font-family: inherit; font-size: 26px; letter-spacing: 0; }
+.online-library-results-heading p { color: inherit; letter-spacing: 0; text-transform: none; opacity: .55; }
+
+/* Keep focus visible without drawing a large rectangular outline around the input. */
+.online-library-search input:focus-visible { outline: 0; }

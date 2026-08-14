@@ -93,32 +93,21 @@ const clickEvent = () =>
     cancelable: true,
   });
 
+export const OPEN_BOOK_SEARCH_EVENT = "koodo-open-book-search";
+
 export const searchInTheBook = (
   keyword: string,
   format: string,
   isSearch: boolean
 ) => {
-  let leftPanel = document.querySelector(".left-panel");
-  if (!leftPanel) return;
-  leftPanel.dispatchEvent(clickEvent());
-  const focusEvent = new MouseEvent("focus", {
-    view: window,
-    bubbles: true,
-    cancelable: true,
-  });
-  let searchBox: any = document.querySelector(".header-search-box");
-  searchBox.dispatchEvent(focusEvent);
-  let searchIcon = document.querySelector(".header-search-icon");
-  searchIcon?.dispatchEvent(clickEvent());
-  if (isSearch) {
-    searchBox.value = getSelection(format) || keyword;
-  }
-  const keyEvent: any = new KeyboardEvent("keydown", {
-    bubbles: true,
-    cancelable: true,
-    keyCode: 13,
-  } as any);
-  searchBox.dispatchEvent(keyEvent);
+  window.dispatchEvent(
+    new CustomEvent(OPEN_BOOK_SEARCH_EVENT, {
+      detail: {
+        keyword: isSearch ? getSelection(format) || keyword : "",
+        submit: isSearch,
+      },
+    })
+  );
 };
 
 export const triggerPopupOptionClick = (optionName: string) => {
@@ -140,6 +129,8 @@ const SELECTION_SHORTCUT_OPTIONS: Array<{
 ];
 
 export const READING_PANEL_TOGGLE_EVENT = "koodo-reading-panel-toggle";
+
+export const SETTING_SEARCH_FOCUS_EVENT = "koodo-setting-search-focus";
 
 export const openReadingPanel = (
   position: "left" | "right" | "top" | "bottom"
@@ -192,6 +183,20 @@ const NAV_TAB_SHORTCUTS: Array<{
   { shortcut: "openToc", tab: "contents" },
 ];
 let lock = false; //prevent from clicking too fasts
+const handleReaderKeyDown = async (
+  rendition: any,
+  event: KeyboardEvent,
+  readerMode: string,
+  format: string,
+  key: string
+) => {
+  if (lock) return;
+  lock = true;
+  await arrowKeys(rendition, event, readerMode, format, key);
+  handleLocation(key, rendition);
+  setTimeout(() => (lock = false), throttleTime);
+};
+
 const arrowKeys = async (
   rendition: any,
   event: any,
@@ -359,14 +364,8 @@ export const bindHtmlEvent = (
 ) => {
   doc.addEventListener(
     "keydown",
-    async (event) => {
-      if (lock) return;
-      lock = true;
-      await arrowKeys(rendition, event, readerMode, format, key);
-      handleLocation(key, rendition);
-      setTimeout(() => (lock = false), throttleTime);
-    },
-    { passive: false }
+    (event) => handleReaderKeyDown(rendition, event, readerMode, format, key),
+    { capture: true, passive: false }
   );
 
   doc.addEventListener(
@@ -412,18 +411,6 @@ export const bindHtmlEvent = (
     { passive: false }
   );
 
-  window.addEventListener(
-    "keydown",
-    async (event) => {
-      if (lock) return;
-      lock = true;
-      await arrowKeys(rendition, event, readerMode, format, key);
-      handleLocation(key, rendition);
-      setTimeout(() => (lock = false), throttleTime);
-    },
-    { passive: false }
-  );
-
   if (ConfigService.getReaderConfig("isTouch") === "yes") {
     const mc = new Hammer(doc);
     mc.on("panleft panright panup pandown", async (event: any) => {
@@ -461,14 +448,22 @@ export const htmlMouseEvent = (
   handleScale: (scale: string) => void,
   renderBookFunc: () => void
 ) => {
-  rendition.on("rendered", () => {
+  // The reader content lives in an iframe, so it needs its own listener.
+  // Keep one listener per document and one for the host window. Registering
+  // on every `rendered` event left stale renditions ahead of the active one,
+  // which made arrow-key page turns intermittent after navigating or resizing.
+  const boundDocs = new WeakSet<Document>();
+  let disposed = false;
+  const bindCurrentDocuments = () => {
+    if (disposed) return;
     let iframe = getIframeWin();
     if (!iframe) return;
     iframe?.focus();
     let docs = getIframeDoc(format, key);
     for (let i = 0; i < docs.length; i++) {
       let doc = docs[i];
-      if (!doc) continue;
+      if (!doc || boundDocs.has(doc)) continue;
+      boundDocs.add(doc);
       bindHtmlEvent(
         rendition,
         doc,
@@ -480,5 +475,20 @@ export const htmlMouseEvent = (
       );
     }
     lock = false;
-  });
+  };
+
+  const handleWindowKeyDown = (event: KeyboardEvent) =>
+    handleReaderKeyDown(rendition, event, readerMode, format, key);
+
+  // Bind immediately as renderTo may have completed before this function is
+  // called. Subsequent rendered events cover newly-created iframe documents.
+  bindCurrentDocuments();
+  rendition.on("rendered", bindCurrentDocuments);
+  window.addEventListener("keydown", handleWindowKeyDown, true);
+
+  return () => {
+    disposed = true;
+    rendition.off?.("rendered", bindCurrentDocuments);
+    window.removeEventListener("keydown", handleWindowKeyDown, true);
+  };
 };

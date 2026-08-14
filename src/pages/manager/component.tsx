@@ -124,6 +124,7 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
     this.isDraggingFromApp = false;
   };
   handleExternalDragEnter = (e: DragEvent) => {
+    if ((e.target as Element | null)?.closest?.(".folder-library")) return;
     if (isExternalFileDragEvent(e)) {
       this.handleDrag(true);
     }
@@ -142,6 +143,7 @@ class Manager extends React.Component<ManagerProps, ManagerState> {
       <div
         className="manager"
         onDragEnter={(e) => {
+          if ((e.target as Element | null)?.closest?.(".folder-library")) return;
           if (isExternalFileDragEvent(e)) {
             this.handleDrag(true);
           }
