@@ -48,6 +48,12 @@ Books 适合希望把书籍、阅读进度和阅读环境集中保存在本地�
 
 ![阅读界面](assets/picture/reading.png)
 
+### 手机端阅读同步
+
+Books 可以连接兼容的手机端阅读 App，让书架和阅读进度在电脑与手机之间保持同步。根据所配置的服务，还可以同步阅读进度、书架、高亮和笔记等阅读相关数据。
+
+![连接手机端阅读 App](assets/picture/app-connect.png)
+
 ## 下载 Windows 版本
 
 前往 [GitHub Releases](https://github.com/user-A100/books-reader/releases) 下载最新版本。

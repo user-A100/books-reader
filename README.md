@@ -48,6 +48,12 @@ Read in a focused interface with controls for themes, typography, backgrounds, a
 
 ![Reading interface](assets/picture/reading.png)
 
+### Mobile reading sync
+
+Books can connect with a compatible mobile reading app so your bookshelf and reading progress can follow you between desktop and mobile. Depending on the configured service, reading-related data such as progress, shelves, highlights, and notes can also be synchronized.
+
+![Mobile reading app connection](assets/picture/app-connect.png)
+
 ## Download for Windows
 
 Download the latest build from [GitHub Releases](https://github.com/user-A100/books-reader/releases).
