@@ -1304,11 +1304,10 @@ let options = {
   },
 };
 const Database = require("better-sqlite3");
-if (os.platform() === "linux") {
-  options = Object.assign({}, options, {
-    icon: path.join(__dirname, "./build/assets/icon.png"),
-  });
-}
+const appIconPath = isDev
+  ? path.join(__dirname, "./public/assets/icon.png")
+  : path.join(__dirname, "./assets/appx/icon.ico");
+options = Object.assign({}, options, { icon: appIconPath });
 // Single Instance Lock
 if (!singleInstance) {
   app.quit();
