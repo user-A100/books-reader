@@ -2,181 +2,124 @@ import React from "react";
 import { Trans } from "react-i18next";
 import toast from "react-hot-toast";
 import {
-  BookSource,
-  SourceBookDetail,
-  SourceBookSummary,
-  SourceChapter,
-  SourceChapterContent,
-} from "../../models/BookSource";
+  LegadoBookSource,
+  isLoginCapableSource,
+  parseLegadoSourcesJson,
+} from "../../services/legadoSource/legadoSourceModel";
 import {
-  deleteBookSource,
-  getBookSourceCache,
-  getBookSources,
-  saveBookSource,
-  saveBookSourceCache,
-  setBookSourceEnabled,
-} from "../../services/bookSource/sourceStorage";
-import { parseBookSourceJson } from "../../services/bookSource/sourceValidation";
+  addLegadoSources,
+  getLegadoSources,
+  removeLegadoSource,
+  setLegadoSourceEnabled,
+} from "../../services/legadoSource/legadoSourceStorage";
+import {
+  LegadoBook,
+  LegadoChapter,
+  LegadoSearchItem,
+  assembleTxt,
+  isLegadoEngineReady,
+  legadoGetBookInfo,
+  legadoGetChapterContent,
+  legadoGetChapterList,
+  legadoSearch,
+} from "../../services/legadoSource/legadoEngineClient";
 import { parseWeReadLegacySource } from "../../services/onlineLibrary/weReadLegacy";
 import { saveWeReadConfig } from "../../services/onlineLibrary/weReadStorage";
-import {
-  fetchBookSourceChapters,
-  fetchBookSourceContent,
-  fetchBookSourceDetail,
-  searchBookSource,
-} from "../../services/bookSource/sourceEngine";
 import "./bookSources.css";
 
 interface BookSourcesProps {
   t: (key: string) => string;
   history?: { push: (path: string) => void };
+  /** Redux-held import entry from ImportLocal (getMd5WithBrowser). */
+  importBookFunc?: (file: File) => Promise<void>;
 }
 
 interface BookSourcesState {
-  sources: BookSource[];
-  selectedSourceId: string;
+  sources: LegadoBookSource[];
+  selectedSourceUrl: string;
   keyword: string;
-  results: SourceBookSummary[];
-  detail: SourceBookDetail | null;
-  chapters: SourceChapter[];
-  content: SourceChapterContent | null;
+  results: LegadoSearchItem[];
+  detail: LegadoBook | null;
+  chapters: LegadoChapter[];
+  content: string;
+  contentTitle: string;
   isImporting: boolean;
   importText: string;
   isLoading: boolean;
   loadingLabel: string;
   error: string;
+  isDownloading: boolean;
+  downloadProgress: string;
 }
 
-const SOURCE_TEMPLATE = `{
-  "id": "my-book-source",
-  "schemaVersion": 1,
-  "name": "我的书源",
-  "baseUrl": "https://example.com",
-  "allowedHosts": ["example.com"],
-  "description": "使用 CSS 选择器解析公开网页",
-  "enabled": true,
-  "search": {
-    "request": { "url": "/search?q={{keyword}}", "method": "GET" },
-    "list": ".book-item",
-    "fields": {
-      "title": ".title@text",
-      "author": ".author@text",
-      "cover": "img@src",
-      "detailUrl": "a@href"
-    }
-  },
-  "detail": {
-    "fields": {
-      "title": "h1@text",
-      "author": ".author@text",
-      "cover": ".cover img@src",
-      "description": ".intro@text",
-      "tocUrl": ".catalog@href"
-    }
-  },
-  "toc": {
-    "list": ".chapter-list a",
-    "fields": { "title": "@text", "url": "@href" }
-  },
-  "content": {
-    "body": "#chapter-content",
-    "remove": ["script", ".advertisement"]
-  }
-}`;
+const LEGADO_ENGINE_MISSING = "legado-engine-not-ready";
 
 class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
   fileInput = React.createRef<HTMLInputElement>();
 
   constructor(props: BookSourcesProps) {
     super(props);
-    const sources = getBookSources();
-    const selectedSourceId = sources[0]?.id || "";
-    const cache = selectedSourceId ? getBookSourceCache(selectedSourceId) : null;
+    const sources = getLegadoSources();
     this.state = {
       sources,
-      selectedSourceId,
-      keyword: cache?.keyword || "",
-      results: cache?.results || [],
-      detail: cache?.detail || null,
-      chapters: cache?.chapters || [],
-      content: cache?.content || null,
+      selectedSourceUrl: sources[0]?.bookSourceUrl || "",
+      keyword: "",
+      results: [],
+      detail: null,
+      chapters: [],
+      content: "",
+      contentTitle: "",
       isImporting: false,
       importText: "",
       isLoading: false,
       loadingLabel: "",
       error: "",
+      isDownloading: false,
+      downloadProgress: "",
     };
   }
 
-  get selectedSource(): BookSource | null {
+  get selectedSource(): LegadoBookSource | null {
     return (
       this.state.sources.find(
-        (source) => source.id === this.state.selectedSourceId
+        (source) => source.bookSourceUrl === this.state.selectedSourceUrl
       ) || null
     );
   }
 
-  // Persist the current inspector state as the selected source's snapshot, so
-  // reopening the page (or switching back to this source) restores it instead
-  // of going blank. Called after every successful fetch.
-  persistCache = () => {
-    const id = this.state.selectedSourceId;
-    if (!id) return;
-    saveBookSourceCache(id, {
-      keyword: this.state.keyword,
-      results: this.state.results,
-      detail: this.state.detail,
-      chapters: this.state.chapters,
-      content: this.state.content,
-    });
+  refreshSources = (preferredUrl?: string) => {
+    const sources = getLegadoSources();
+    const selectedSourceUrl =
+      preferredUrl && sources.some((s) => s.bookSourceUrl === preferredUrl)
+        ? preferredUrl
+        : sources.some((s) => s.bookSourceUrl === this.state.selectedSourceUrl)
+          ? this.state.selectedSourceUrl
+          : sources[0]?.bookSourceUrl || "";
+    this.setState({ sources, selectedSourceUrl });
   };
 
-  refreshSources = (preferredId?: string) => {
-    const sources = getBookSources();
-    const selectedSourceId =
-      preferredId && sources.some((source) => source.id === preferredId)
-        ? preferredId
-        : sources.some((source) => source.id === this.state.selectedSourceId)
-          ? this.state.selectedSourceId
-          : sources[0]?.id || "";
-    this.setState({ sources, selectedSourceId });
-  };
-
-  resetInspector = () => {
+  handleSelectSource = (sourceUrl: string) => {
     this.setState({
+      selectedSourceUrl: sourceUrl,
       results: [],
       detail: null,
       chapters: [],
-      content: null,
+      content: "",
       error: "",
     });
   };
 
-  // Restore a source's last snapshot when selected, so previously fetched
-  // books reappear instead of the page going blank.
-  handleSelectSource = (sourceId: string) => {
-    const cache = getBookSourceCache(sourceId);
-    this.setState({
-      selectedSourceId: sourceId,
-      keyword: cache?.keyword || "",
-      results: cache?.results || [],
-      detail: cache?.detail || null,
-      chapters: cache?.chapters || [],
-      content: cache?.content || null,
-      error: "",
-    });
+  handleToggleSource = (source: LegadoBookSource) => {
+    setLegadoSourceEnabled(source.bookSourceUrl, source.enabled === false);
+    this.refreshSources(source.bookSourceUrl);
   };
 
-  handleToggleSource = (source: BookSource) => {
-    setBookSourceEnabled(source.id, !source.enabled);
-    this.refreshSources(source.id);
-  };
-
-  handleDeleteSource = (source: BookSource) => {
-    if (!window.confirm(`${this.props.t("Delete")} “${source.name}”?`)) return;
-    deleteBookSource(source.id);
+  handleDeleteSource = (source: LegadoBookSource) => {
+    if (!window.confirm(`${this.props.t("Delete")} “${source.bookSourceName}”?`))
+      return;
+    removeLegadoSource(source.bookSourceUrl);
     this.refreshSources();
-    this.resetInspector();
+    this.setState({ results: [], detail: null, chapters: [], content: "" });
     toast.success(this.props.t("Deletion successful"));
   };
 
@@ -189,28 +132,22 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
       this.props.history?.push("/manager/weread");
       return;
     }
-    const results = parseBookSourceJson(text);
-    const invalid = results.filter((result) => !result.valid);
-    if (invalid.length) {
+    const sources = parseLegadoSourcesJson(text);
+    if (!sources.length) {
       this.setState({
-        error: invalid
-          .flatMap((result, index) =>
-            result.errors.map((error) => `#${index + 1} ${error}`)
-          )
-          .join("\n"),
+        error: this.props.t(
+          "No valid Legado sources found: each needs bookSourceUrl, bookSourceName and ruleSearch"
+        ),
       });
       return;
     }
-    const sources = results
-      .map((result) => result.source)
-      .filter((source): source is BookSource => !!source);
-    sources.forEach(saveBookSource);
+    const added = addLegadoSources(sources);
     this.setState(
       { isImporting: false, importText: "", error: "" },
-      () => this.refreshSources(sources[0]?.id)
+      () => this.refreshSources(sources[0]?.bookSourceUrl)
     );
     toast.success(
-      `${this.props.t("Imported successfully")}: ${sources.length}`
+      `${this.props.t("Imported successfully")}: ${added} / ${sources.length}`
     );
   };
 
@@ -222,13 +159,25 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
   };
 
   runTask = async (label: string, task: () => Promise<void>) => {
+    if (!isLegadoEngineReady()) {
+      const message = this.props.t(
+        "Install and enable the Legado Book Sources plugin first"
+      );
+      this.setState({ error: message });
+      toast.error(message);
+      return;
+    }
     this.setState({ isLoading: true, loadingLabel: label, error: "" });
     try {
       await task();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.setState({ error: message });
-      toast.error(message);
+      const shown =
+        message === LEGADO_ENGINE_MISSING
+          ? this.props.t("Install and enable the Legado Book Sources plugin first")
+          : message;
+      this.setState({ error: shown });
+      toast.error(shown);
     } finally {
       this.setState({ isLoading: false, loadingLabel: "" });
     }
@@ -241,7 +190,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
       toast.error(this.props.t("Please import a book source first"));
       return;
     }
-    if (!source.enabled) {
+    if (source.enabled === false) {
       toast.error(this.props.t("Please enable this book source first"));
       return;
     }
@@ -250,17 +199,20 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
       return;
     }
     this.runTask(this.props.t("Searching..."), async () => {
-      const results = await searchBookSource(source, keyword);
-      this.setState({ results, detail: null, chapters: [], content: null }, this.persistCache);
+      const results = await legadoSearch(source, keyword);
+      if (!results.length) {
+        toast(this.props.t("No results"));
+      }
+      this.setState({ results, detail: null, chapters: [], content: "" });
     });
   };
 
-  handleOpenBook = (summary: SourceBookSummary) => {
+  handleOpenBook = (item: LegadoSearchItem) => {
     const source = this.selectedSource;
     if (!source) return;
     this.runTask(this.props.t("Loading book detail..."), async () => {
-      const detail = await fetchBookSourceDetail(source, summary);
-      this.setState({ detail, chapters: [], content: null }, this.persistCache);
+      const detail = await legadoGetBookInfo(source, item);
+      this.setState({ detail, chapters: [], content: "" });
     });
   };
 
@@ -269,18 +221,58 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
     const detail = this.state.detail;
     if (!source || !detail) return;
     this.runTask(this.props.t("Loading chapters..."), async () => {
-      const chapters = await fetchBookSourceChapters(source, detail);
-      this.setState({ chapters, content: null }, this.persistCache);
+      const chapters = await legadoGetChapterList(source, detail);
+      this.setState({ chapters, content: "" });
     });
   };
 
-  handleOpenChapter = (chapter: SourceChapter) => {
+  handleOpenChapter = (chapter: LegadoChapter, index: number) => {
     const source = this.selectedSource;
-    if (!source) return;
+    const detail = this.state.detail;
+    if (!source || !detail) return;
     this.runTask(this.props.t("Loading chapter..."), async () => {
-      const content = await fetchBookSourceContent(source, chapter);
-      this.setState({ content }, this.persistCache);
+      const content = await legadoGetChapterContent(source, detail, chapter);
+      this.setState({
+        content,
+        contentTitle: chapter.title || `#${index + 1}`,
+      });
     });
+  };
+
+  /** Downloads every chapter and imports the assembled TXT into the library. */
+  handleDownloadBook = async () => {
+    const source = this.selectedSource;
+    const detail = this.state.detail;
+    const chapters = this.state.chapters;
+    if (!source || !detail || !chapters.length) return;
+    if (!this.props.importBookFunc) {
+      toast.error(this.props.t("Open the library page first, then try again"));
+      return;
+    }
+    this.setState({ isDownloading: true, downloadProgress: `0/${chapters.length}` });
+    try {
+      const parts: { title: string; content: string }[] = [];
+      for (let index = 0; index < chapters.length; index += 1) {
+        const chapter = chapters[index];
+        const content = await legadoGetChapterContent(source, detail, chapter);
+        parts.push({ title: chapter.title || `第${index + 1}章`, content });
+        this.setState({
+          downloadProgress: `${index + 1}/${chapters.length}`,
+        });
+      }
+      const title = detail.name || this.props.t("Untitled");
+      const author = detail.author || "";
+      const txt = assembleTxt(title, author, parts);
+      const fileName = `${title}.txt`.replace(/[\\/:*?"<>|]/g, " ");
+      const file = new File([txt], fileName, { type: "text/plain" });
+      await this.props.importBookFunc(file);
+      toast.success(this.props.t("Imported successfully"));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`${this.props.t("Download failed")}: ${message}`);
+    } finally {
+      this.setState({ isDownloading: false, downloadProgress: "" });
+    }
   };
 
   renderSourceRail = () => (
@@ -312,7 +304,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
         </button>
         <button
           onClick={() =>
-            this.setState({ isImporting: true, importText: SOURCE_TEMPLATE })
+            this.setState({ isImporting: true, importText: "" })
           }
         >
           <Trans>Paste or create</Trans>
@@ -323,21 +315,23 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
           <div className="book-source-empty-rail">
             <Trans>No book sources yet</Trans>
             <small>
-              <Trans>Import a JSON rule to begin.</Trans>
+              <Trans>Import a Legado book source JSON to begin.</Trans>
             </small>
           </div>
         )}
         {this.state.sources.map((source) => (
           <div
-            key={source.id}
+            key={source.bookSourceUrl}
             className={`book-source-card ${
-              source.id === this.state.selectedSourceId ? "active" : ""
+              source.bookSourceUrl === this.state.selectedSourceUrl ? "active" : ""
             }`}
-            onClick={() => this.handleSelectSource(source.id)}
+            onClick={() => this.handleSelectSource(source.bookSourceUrl)}
           >
             <div className="book-source-card-topline">
-              <span className={`book-source-status ${source.enabled ? "on" : ""}`} />
-              <strong>{source.name}</strong>
+              <span
+                className={`book-source-status ${source.enabled !== false ? "on" : ""}`}
+              />
+              <strong>{source.bookSourceName}</strong>
               <button
                 className="book-source-plain-button"
                 onClick={(event) => {
@@ -349,15 +343,20 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
                 <span className="icon-trash" />
               </button>
             </div>
-            <p>{source.description || source.baseUrl}</p>
+            <p>{source.bookSourceGroup || source.bookSourceUrl}</p>
+            {isLoginCapableSource(source) && (
+              <p className="book-source-limited">
+                <Trans>Optional login available</Trans>
+              </p>
+            )}
             <label onClick={(event) => event.stopPropagation()}>
               <input
                 type="checkbox"
-                checked={source.enabled}
+                checked={source.enabled !== false}
                 onChange={() => this.handleToggleSource(source)}
               />
               <span>
-                <Trans>{source.enabled ? "Enabled" : "Disabled"}</Trans>
+                <Trans>{source.enabled !== false ? "Enabled" : "Disabled"}</Trans>
               </span>
             </label>
           </div>
@@ -394,11 +393,20 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
       <main className="book-source-workspace">
         <header className="book-source-header">
           <div>
-            <h1>{this.selectedSource?.name || this.props.t("Build your first source")}</h1>
-            {this.selectedSource?.baseUrl && <p className="book-source-address">{this.selectedSource.baseUrl}</p>}
+            <h1>
+              {this.selectedSource?.bookSourceName ||
+                this.props.t("Import your first source")}
+            </h1>
+            {this.selectedSource?.bookSourceUrl && (
+              <p className="book-source-address">
+                {this.selectedSource.bookSourceUrl}
+              </p>
+            )}
           </div>
           {this.selectedSource && (
-            <span className="book-source-schema-badge">Schema v1 · CSS</span>
+            <span className="book-source-schema-badge">
+              <Trans>Legado source</Trans>
+            </span>
           )}
         </header>
         {this.renderFlow()}
@@ -431,7 +439,7 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
             </h3>
             <p>
               <Trans>
-                Import a rule, test every parsing step, then decide whether to keep it.
+                Import a Legado source JSON, search, preview chapters, then download the book into your library.
               </Trans>
             </p>
           </section>
@@ -444,11 +452,21 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
             </div>
             <div className="book-source-results">
               {results.map((book, index) => (
-                <button key={`${book.detailUrl}-${index}`} onClick={() => this.handleOpenBook(book)}>
+                <button
+                  key={`${book.bookUrl}-${index}`}
+                  onClick={() => this.handleOpenBook(book)}
+                >
                   <div className="book-source-cover">
-                    {book.coverUrl ? <img src={book.coverUrl} alt="" /> : <span className="icon-book" />}
+                    {book.coverUrl ? (
+                      <img src={book.coverUrl} alt="" />
+                    ) : (
+                      <span className="icon-book" />
+                    )}
                   </div>
-                  <span><strong>{book.title}</strong><small>{book.author || this.props.t("Unknown author")}</small></span>
+                  <span>
+                    <strong>{book.name}</strong>
+                    <small>{book.author || this.props.t("Unknown author")}</small>
+                  </span>
                   <i>→</i>
                 </button>
               ))}
@@ -457,25 +475,48 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
         )}
         {detail && (
           <section className="book-source-section book-source-detail">
-            <div className="book-source-section-title"><h3><Trans>Parsed detail</Trans></h3><span>2</span></div>
+            <div className="book-source-section-title">
+              <h3><Trans>Parsed detail</Trans></h3>
+              <span>2</span>
+            </div>
             <div className="book-source-detail-grid">
               {detail.coverUrl && <img src={detail.coverUrl} alt="" />}
               <div>
-                <h2>{detail.title}</h2>
+                <h2>{detail.name}</h2>
                 <p className="book-source-author">{detail.author}</p>
-                <p>{detail.description || this.props.t("No description parsed")}</p>
-                <button onClick={this.handleLoadChapters}><Trans>Parse chapter list</Trans></button>
+                <p>{detail.intro || this.props.t("No description parsed")}</p>
+                <button onClick={this.handleLoadChapters}>
+                  <Trans>Parse chapter list</Trans>
+                </button>
               </div>
             </div>
           </section>
         )}
         {chapters.length > 0 && (
           <section className="book-source-section">
-            <div className="book-source-section-title"><h3><Trans>Chapter list</Trans></h3><span>{chapters.length}</span></div>
+            <div className="book-source-section-title">
+              <h3><Trans>Chapter list</Trans></h3>
+              <span>{chapters.length}</span>
+              <button
+                className="book-source-download-button"
+                disabled={this.state.isDownloading}
+                onClick={this.handleDownloadBook}
+              >
+                {this.state.isDownloading ? (
+                  `${this.props.t("Downloading")} ${this.state.downloadProgress}`
+                ) : (
+                  <Trans>Download whole book as TXT</Trans>
+                )}
+              </button>
+            </div>
             <div className="book-source-chapters">
               {chapters.map((chapter, index) => (
-                <button key={`${chapter.url}-${index}`} onClick={() => this.handleOpenChapter(chapter)}>
-                  <span>{String(index + 1).padStart(2, "0")}</span>{chapter.title}
+                <button
+                  key={`${chapter.url}-${index}`}
+                  onClick={() => this.handleOpenChapter(chapter, index)}
+                >
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  {chapter.title}
                 </button>
               ))}
             </div>
@@ -483,8 +524,11 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
         )}
         {content && (
           <section className="book-source-section book-source-content">
-            <div className="book-source-section-title"><h3>{content.title}</h3><span>4</span></div>
-            <article dangerouslySetInnerHTML={{ __html: content.html }} />
+            <div className="book-source-section-title">
+              <h3>{this.state.contentTitle}</h3>
+              <span>4</span>
+            </div>
+            <article>{content}</article>
           </section>
         )}
       </main>
@@ -498,13 +542,27 @@ class BookSources extends React.Component<BookSourcesProps, BookSourcesState> {
         <div className="book-source-editor">
           <div className="book-source-editor-title">
             <div><h2><Trans>Import book source</Trans></h2></div>
-            <button onClick={() => this.setState({ isImporting: false })}><span className="icon-close" /></button>
+            <button onClick={() => this.setState({ isImporting: false })}>
+              <span className="icon-close" />
+            </button>
           </div>
-          <p><Trans>Selectors use the form “.title@text” or “a@href”. JavaScript is not executed.</Trans></p>
-          <textarea spellCheck={false} value={this.state.importText} onChange={(event) => this.setState({ importText: event.target.value })} />
+          <p>
+            <Trans>
+              Paste a Legado book source JSON (single object or array). Rules run in the sandboxed Legado engine plugin.
+            </Trans>
+          </p>
+          <textarea
+            spellCheck={false}
+            value={this.state.importText}
+            onChange={(event) => this.setState({ importText: event.target.value })}
+          />
           <div className="book-source-editor-actions">
-            <button onClick={() => this.setState({ isImporting: false })}><Trans>Cancel</Trans></button>
-            <button onClick={() => this.importSources(this.state.importText)}><Trans>Validate and import</Trans></button>
+            <button onClick={() => this.setState({ isImporting: false })}>
+              <Trans>Cancel</Trans>
+            </button>
+            <button onClick={() => this.importSources(this.state.importText)}>
+              <Trans>Validate and import</Trans>
+            </button>
           </div>
         </div>
       </div>

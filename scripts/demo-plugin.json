@@ -1,0 +1,13 @@
+{
+  "manifest": {
+    "id": "demo-hello",
+    "name": "Demo Hello",
+    "author": "koodo-dev",
+    "version": "1.0.0",
+    "minAppVersion": "1.0.0",
+    "description": "Smoke-test plugin: logs through the host API on load and registers a stub book-source engine.",
+    "category": "bookSource",
+    "isDesktopOnly": false
+  },
+  "mainJs": "module.exports = class DemoHello {\n  constructor(context) {\n    this.id = context.id;\n    this.host = context.host;\n  }\n  async onload() {\n    this.host.log.info('demo plugin onload');\n    const version = await this.host.getVersion();\n    this.host.log.info('host app version: ' + version);\n    await this.host.storage.set('lastLoad', String(Date.now()));\n    const lastLoad = await this.host.storage.get('lastLoad');\n    this.host.log.info('storage roundtrip: ' + lastLoad);\n    this.host.registerBookSourceEngine({\n      search: async (source, keyword) => {\n        this.host.log.info('search called: ' + keyword);\n        return [\n          {\n            title: 'Demo book: ' + keyword,\n            author: 'demo',\n            detailUrl: source.bookSourceUrl || 'https://example.com',\n          },\n        ];\n      },\n      getChapterList: async () => [{ title: 'Chapter 1', url: 'https://example.com/1' }],\n      getChapterContent: async (source, chapter) =>\n        'Hello from the demo plugin: ' + chapter.title,\n    });\n  }\n  async onunload() {\n    this.host.log.info('demo plugin onunload');\n  }\n};\n"
+}

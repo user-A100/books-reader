@@ -1951,6 +1951,270 @@ const createMainWin = () => {
     var result = await dialog.showOpenDialog(dialogOptions);
     return result.filePaths[0];
   });
+  // Plugin host file store. All paths are plugin-relative ("id/main.js"),
+  // validated before touching the filesystem: no absolute paths, no "..",
+  // and the resolved path must stay inside the plugins directory.
+  const pluginsDir = path.join(configDir, "plugins");
+  const resolvePluginPath = (relativePath) => {
+    if (
+      typeof relativePath !== "string" ||
+      !relativePath ||
+      relativePath.includes("\\") ||
+      relativePath.includes("..") ||
+      path.isAbsolute(relativePath) ||
+      relativePath.split("/").some((part) => !part || /[^a-zA-Z0-9._-]/.test(part))
+    ) {
+      return null;
+    }
+    const resolved = path.resolve(pluginsDir, relativePath);
+    if (!resolved.startsWith(pluginsDir + path.sep)) return null;
+    return resolved;
+  };
+  ipcMain.handle("plugin-read-file", async (event, config) => {
+    const resolved = resolvePluginPath(config && config.path);
+    if (!resolved) return null;
+    try {
+      return await fs.promises.readFile(resolved, "utf8");
+    } catch (error) {
+      if (error && error.code === "ENOENT") return null;
+      throw error;
+    }
+  });
+  ipcMain.handle("plugin-write-file", async (event, config) => {
+    const resolved = resolvePluginPath(config && config.path);
+    if (!resolved || typeof (config && config.content) !== "string") {
+      return false;
+    }
+    await fs.promises.mkdir(path.dirname(resolved), { recursive: true });
+    await fs.promises.writeFile(resolved, config.content, "utf8");
+    return true;
+  });
+  ipcMain.handle("plugin-delete-file", async (event, config) => {
+    const resolved = resolvePluginPath(config && config.path);
+    if (!resolved) return false;
+    try {
+      await fs.promises.rm(resolved, { recursive: true, force: true });
+    } catch (error) {
+      return false;
+    }
+    return true;
+  });
+  ipcMain.handle("plugin-list-dir", async (event, config) => {
+    const relativePath = (config && config.path) || "";
+    const resolved = relativePath
+      ? resolvePluginPath(relativePath)
+      : pluginsDir;
+    if (!resolved) return [];
+    try {
+      const entries = await fs.promises.readdir(resolved, {
+        withFileTypes: true,
+      });
+      return entries.map((entry) =>
+        entry.isDirectory() ? entry.name + "/" : entry.name
+      );
+    } catch (error) {
+      return [];
+    }
+  });
+  // Main-process download for the plugin registry and plugin bundles so a
+  // proxy can be swapped at this level later. HTTPS only, redirects followed
+  // manually (re-validated), 20 MB cap, bytes returned as base64.
+  ipcMain.handle("plugin-download", async (event, config) => {
+    const https = require("https");
+    const DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024;
+    const fetchWithRedirects = async (urlText, depth) => {
+      if (depth > 4) throw new Error("Too many redirects");
+      let url;
+      try {
+        url = new URL(urlText);
+      } catch (error) {
+        throw new Error("Invalid URL");
+      }
+      if (url.protocol !== "https:") throw new Error("Only https is allowed");
+      const chunks = [];
+      let total = 0;
+      let status, headers, location;
+      await new Promise((resolve, reject) => {
+        const request = https.request(
+          url,
+          { timeout: 30000 },
+          (response) => {
+            status = response.statusCode;
+            headers = response.headers;
+            location = response.headers.location;
+            response.on("data", (chunk) => {
+              total += chunk.length;
+              if (total > DOWNLOAD_MAX_BYTES) {
+                request.destroy(new Error("Download exceeds 20 MB"));
+                return;
+              }
+              chunks.push(chunk);
+            });
+            response.on("end", () => resolve());
+            response.on("error", reject);
+          }
+        );
+        request.on("timeout", () => {
+          request.destroy(new Error("Download timed out"));
+        });
+        request.on("error", reject);
+        request.end();
+      });
+      if (
+        location &&
+        [301, 302, 303, 307, 308].includes(status)
+      ) {
+        return fetchWithRedirects(new URL(location, url).toString(), depth + 1);
+      }
+      if (status < 200 || status >= 300) {
+        throw new Error(`HTTP ${status}`);
+      }
+      return {
+        status,
+        bytes: Buffer.concat(chunks).toString("base64"),
+      };
+    };
+    if (typeof (config && config.url) !== "string") {
+      throw new Error("Missing url");
+    }
+    return fetchWithRedirects(config.url, 0);
+  });
+  // Main-process HTTP fetch for book-source plugins. Runs in Node (no CORS,
+  // no browser origin restrictions) so cross-origin book-source sites that
+  // don't send Access-Control-Allow-Origin still work. SSRF guards live in
+  // the renderer-side host API; this handler trusts the renderer and only
+  // enforces: http(s) only, no private IPs, 20 MB cap, 30 s timeout.
+  ipcMain.handle("plugin-http-fetch", async (event, config) => {
+    const https = require("https");
+    const http = require("http");
+    if (typeof (config && config.url) !== "string") {
+      throw new Error("Missing url");
+    }
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(config.url);
+    } catch (error) {
+      throw new Error("Invalid URL");
+    }
+    const isPrivateHost = (hostname) => {
+      const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+      if (
+        host === "localhost" ||
+        host.endsWith(".localhost") ||
+        host === "::1"
+      )
+        return true;
+      const parts = host.split(".").map(Number);
+      if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p)))
+        return false;
+      return (
+        parts[0] === 10 ||
+        parts[0] === 127 ||
+        (parts[0] === 169 && parts[1] === 254) ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+        (parts[0] === 192 && parts[1] === 168)
+      );
+    };
+    if (
+      (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") ||
+      isPrivateHost(parsedUrl.hostname)
+    ) {
+      throw new Error("Blocked by SSRF guard");
+    }
+    const isHttps = parsedUrl.protocol === "https:";
+    const lib = isHttps ? https : http;
+    const method = String(config.method || "GET").toUpperCase();
+    const headers = config.headers || {};
+    if (!headers["User-Agent"] && !headers["user-agent"]) {
+      headers["User-Agent"] =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    }
+    const chunks = [];
+    return await new Promise((resolve, reject) => {
+      const request = lib.request(
+        parsedUrl,
+        { method, headers, timeout: 30000 },
+        (response) => {
+          // Follow redirects manually (3xx), re-validating the target.
+          if (
+            [301, 302, 303, 307, 308].includes(response.statusCode) &&
+            response.headers.location
+          ) {
+            const next = new URL(
+              response.headers.location,
+              parsedUrl
+            );
+            if (isPrivateHost(next.hostname)) {
+              return reject(new Error("Redirected to a private host"));
+            }
+            // Recurse via the same IPC by issuing a fresh request.
+            const followLib = next.protocol === "https:" ? https : http;
+            const followReq = followLib.request(
+              next,
+              { method, headers, timeout: 30000 },
+              (followRes) => {
+                followRes.on("data", (chunk) => {
+                  chunks.push(chunk);
+                  if (Buffer.concat(chunks).length > 20 * 1024 * 1024) {
+                    followReq.destroy(new Error("Response exceeds 20 MB"));
+                  }
+                });
+                followRes.on("end", () => {
+                  const body = Buffer.concat(chunks);
+                  const flatHeaders = {};
+                  Object.entries(followRes.headers).forEach(([k, v]) => {
+                    flatHeaders[k] = Array.isArray(v) ? v.join(", ") : v;
+                  });
+                  resolve({
+                    status: followRes.statusCode,
+                    finalUrl: next.toString(),
+                    headers: flatHeaders,
+                    body: body.toString("base64"),
+                    binary: true,
+                  });
+                });
+                followRes.on("error", reject);
+              }
+            );
+            followReq.on("timeout", () =>
+              followReq.destroy(new Error("Request timed out"))
+            );
+            followReq.on("error", reject);
+            if (config.body) followReq.write(config.body);
+            followReq.end();
+            return;
+          }
+          response.on("data", (chunk) => {
+            chunks.push(chunk);
+            if (Buffer.concat(chunks).length > 20 * 1024 * 1024) {
+              request.destroy(new Error("Response exceeds 20 MB"));
+            }
+          });
+          response.on("end", () => {
+            const body = Buffer.concat(chunks);
+            const flatHeaders = {};
+            Object.entries(response.headers).forEach(([k, v]) => {
+              flatHeaders[k] = Array.isArray(v) ? v.join(", ") : v;
+            });
+            resolve({
+              status: response.statusCode,
+              finalUrl: parsedUrl.toString(),
+              headers: flatHeaders,
+              body: body.toString("base64"),
+              binary: true,
+            });
+          });
+          response.on("error", reject);
+        }
+      );
+      request.on("timeout", () =>
+        request.destroy(new Error("Request timed out"))
+      );
+      request.on("error", reject);
+      if (config.body) request.write(config.body);
+      request.end();
+    });
+  });
   ipcMain.handle("encrypt-data", async (event, config) => {
     const { TokenService } =
       await import("./src/assets/lib/kookit-extra.min.mjs");

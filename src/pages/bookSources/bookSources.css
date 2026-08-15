@@ -276,3 +276,20 @@ button:focus-visible,
 .book-source-editor { border-radius: 8px; box-shadow: 0 4px 18px rgba(0, 0, 0, .2); }
 .book-source-modal { backdrop-filter: none; }
 .book-source-editor textarea, .book-source-error { font-family: inherit; }
+
+/* Legado engine additions */
+.book-source-limited {
+  color: var(--color-warning, #c77700);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.book-source-download-button {
+  margin-left: auto;
+  padding: 5px 12px;
+  font-size: 12px;
+  border: 1px solid var(--color-border, rgba(128, 128, 128, 0.3));
+  border-radius: var(--radius-pill, 14px);
+  background: var(--color-theme-color, #4a90d9);
+  color: #fff;
+}

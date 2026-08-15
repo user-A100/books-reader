@@ -1,10 +1,12 @@
 import { BookSource } from "../../models/BookSource";
 import {
+  isSourceUrlAllowed,
   parseBookDetail,
   parseChapterContent,
   parseChapterList,
   parseSearchResults,
   renderSourceTemplate,
+  resolveSourceUrl,
 } from "./sourceEngine";
 import { validateBookSource } from "./sourceValidation";
 
@@ -99,5 +101,41 @@ describe("book source engine", () => {
     const result = validateBookSource({ ...source, baseUrl: "javascript:alert(1)" });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain("baseUrl must use http or https");
+  });
+});
+
+describe("SSRF guard (isSourceUrlAllowed)", () => {
+  // The plugin host's httpFetch reuses this same private-host check; book
+  // sources (and thus Legado engines) must never reach internal addresses.
+  test("blocks loopback, private, and link-local IPs", () => {
+    expect(isSourceUrlAllowed(source, "https://books.example/ok")).toBe(true);
+    expect(isSourceUrlAllowed(source, "http://127.0.0.1/admin")).toBe(false);
+    expect(isSourceUrlAllowed(source, "http://localhost/admin")).toBe(false);
+    expect(isSourceUrlAllowed(source, "http://192.168.1.1/")).toBe(false);
+    expect(isSourceUrlAllowed(source, "http://10.0.0.1/")).toBe(false);
+    expect(isSourceUrlAllowed(source, "http://172.16.0.1/")).toBe(false);
+    expect(isSourceUrlAllowed(source, "http://172.31.255.1/")).toBe(false);
+    expect(isSourceUrlAllowed(source, "http://169.254.169.254/latest/meta-data/")).toBe(
+      false
+    );
+  });
+
+  test("blocks non-http schemes", () => {
+    expect(isSourceUrlAllowed(source, "file:///etc/passwd")).toBe(false);
+    expect(isSourceUrlAllowed(source, "javascript:alert(1)")).toBe(false);
+  });
+
+  test("resolveSourceUrl + isSourceUrlAllowed refuse internal hosts", () => {
+    // Relative URL resolved against the public base is allowed.
+    const safe = resolveSourceUrl("/search?q=k", "https://books.example/");
+    expect(safe).toBe("https://books.example/search?q=k");
+    expect(isSourceUrlAllowed(source, safe)).toBe(true);
+    // An explicit private host resolves fine but the allowlist rejects it,
+    // mirroring how the engine guards each fetch it performs.
+    const evil = resolveSourceUrl(
+      "http://192.168.0.5/secret",
+      "https://books.example/"
+    );
+    expect(isSourceUrlAllowed(source, evil)).toBe(false);
   });
 });

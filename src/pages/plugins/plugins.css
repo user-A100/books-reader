@@ -303,3 +303,77 @@
   line-height: 1.9;
   opacity: 0.85;
 }
+
+/* Community registry rows (rendered as divs, not selectable buttons) */
+.plugin-community-row {
+  width: 100%;
+  text-align: left;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border, rgba(128, 128, 128, 0.3));
+  border-radius: var(--radius-card, 6px);
+}
+
+.plugin-community-row .plugin-card-meta {
+  justify-content: space-between;
+}
+
+.plugin-community-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Obsidian-style enable toggle */
+.plugin-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.plugin-toggle {
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 11px;
+  background: var(--color-hover, rgba(128, 128, 128, 0.35));
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.plugin-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.plugin-toggle-on {
+  background: var(--color-theme-color, #4a90d9);
+}
+
+.plugin-toggle-on .plugin-toggle-thumb {
+  transform: translateX(18px);
+}
+
+.plugin-toggle:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.plugin-toggle-state {
+  font-size: 13px;
+  opacity: 0.75;
+}

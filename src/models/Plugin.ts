@@ -63,6 +63,8 @@ export interface PluginManifest {
   authorUrl?: string;
   /** Whether the plugin can be used only on desktop. */
   isDesktopOnly?: boolean;
+  /** Host capability the plugin plugs into, e.g. "bookSource". */
+  category?: string;
 }
 
 export interface CommunityPluginEntry extends PluginManifest {
