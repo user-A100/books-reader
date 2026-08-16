@@ -14,6 +14,7 @@ export const PLUGIN_IPC = {
   deleteFile: "plugin-delete-file",
   listDir: "plugin-list-dir",
   download: "plugin-download",
+  readBundled: "plugin-read-bundled",
 } as const;
 
 /** What gets persisted per installed plugin (storage key: the plugin id). */

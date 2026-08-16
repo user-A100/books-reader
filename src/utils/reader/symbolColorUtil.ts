@@ -195,7 +195,9 @@ export const applySymbolColoring = (
       }
       const span = doc.createElement("span");
       span.dataset.koodoSymbolColor = rule.id;
-      span.style.color = rule.color;
+      // Reader themes intentionally use !important for the global text color.
+      // Symbol rules are a more specific user choice and must win that cascade.
+      span.style.setProperty("color", rule.color, "important");
       span.textContent = value;
       fragment.appendChild(span);
     }

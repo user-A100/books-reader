@@ -15,6 +15,11 @@ describe("symbolColorUtil", () => {
       doc.querySelectorAll("span[data-koodo-symbol-color]")
     ).map((item) => item.textContent);
     expect(colored).toEqual(["浅", "松", "绿色"]);
+    const first = doc.querySelector(
+      "span[data-koodo-symbol-color]"
+    ) as HTMLElement;
+    expect(first.style.getPropertyValue("color")).toBe("rgb(134, 191, 143)");
+    expect(first.style.getPropertyPriority("color")).toBe("important");
   });
 
   it("does not color unmatched symbols and can be applied repeatedly", () => {

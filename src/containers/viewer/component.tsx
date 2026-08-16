@@ -424,6 +424,9 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
           })
         );
       }
+      // goToPosition/goToXpath may rebuild the iframe after the initial style
+      // pass, so decorate the document that is actually visible now.
+      StyleUtil.applySymbolColoring();
     }
     rendition.on("rendered", async () => {
       this.handleLocation();
@@ -504,6 +507,7 @@ class Viewer extends React.Component<ViewerProps, ViewerState> {
       }
       setTimeout(async () => {
         await rendition.refreshContent();
+        StyleUtil.addDefaultCss(this.props.currentBook.key);
         let chapters = rendition.getChapter();
         let flattenChapters = rendition.flatChapter(chapters);
         this.props.handleHtmlBook({

@@ -5,7 +5,7 @@ import { StyleHelper } from "../../assets/lib/kookit.min";
 import FontUtil from "../file/fontUtil";
 import BackgroundUtil from "../file/backgroundUtil";
 import {
-  applySymbolColoring,
+  applySymbolColoring as applySymbolColoringToDocument,
   parseSymbolColorRules,
 } from "./symbolColorUtil";
 
@@ -48,18 +48,26 @@ class styleUtil {
 
     void this.applyReaderBackground(doc);
 
-    applySymbolColoring(
-      doc,
-      ConfigService.getReaderConfig("isSymbolColoring") === "yes"
-        ? parseSymbolColorRules(
-            ConfigService.getReaderConfig("symbolColorRules")
-          )
-        : []
-    );
+    this.applySymbolColoring();
   }
   // get default css for iframe
   static getDefaultCss(bookKey: string) {
     return StyleHelper.getDefaultCss(ConfigService, bookKey);
+  }
+
+  /** Apply the saved symbol rules to every currently rendered book document.
+   * This is intentionally independent from a full book render: TXT/EPUB
+   * pagination can rebuild the iframe after styles were first injected. */
+  static applySymbolColoring(): void {
+    const rules =
+      ConfigService.getReaderConfig("isSymbolColoring") === "yes"
+        ? parseSymbolColorRules(
+            ConfigService.getReaderConfig("symbolColorRules")
+          )
+        : [];
+    getIframeDoc("ANY").forEach((doc) => {
+      if (doc) applySymbolColoringToDocument(doc, rules);
+    });
   }
 
   /**

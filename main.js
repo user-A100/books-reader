@@ -2016,6 +2016,18 @@ const createMainWin = () => {
       return [];
     }
   });
+  ipcMain.handle("plugin-read-bundled", async (event, config) => {
+    const id = config && config.id;
+    if (typeof id !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(id)) return null;
+    try {
+      const bundledPath = path.join(__dirname, "assets", "bundled-plugins", `${id}.json`);
+      const bundled = JSON.parse(await fs.promises.readFile(bundledPath, "utf8"));
+      if (!bundled || typeof bundled.mainJs !== "string" || !bundled.manifest) return null;
+      return { manifest: bundled.manifest, mainJs: bundled.mainJs };
+    } catch (error) {
+      return null;
+    }
+  });
   // On-demand book-source chapter cache. Metadata stays in ConfigService;
   // chapter bodies live in dedicated files so they never bloat synced config.
   const sourceCacheDir = path.join(configDir, "source-chapter-cache");

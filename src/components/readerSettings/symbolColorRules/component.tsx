@@ -7,6 +7,7 @@ import {
   parseSymbolColorRules,
   SymbolColorRule,
 } from "../../../utils/reader/symbolColorUtil";
+import StyleUtil from "../../../utils/reader/styleUtil";
 import "./symbolColorRules.css";
 
 interface SymbolColorRulesProps {
@@ -36,7 +37,9 @@ class SymbolColorRules extends React.Component<
   save = (rules = this.state.rules, enabled = this.state.enabled) => {
     ConfigService.setReaderConfig("isSymbolColoring", enabled ? "yes" : "no");
     ConfigService.setReaderConfig("symbolColorRules", JSON.stringify(rules));
-    this.props.renderBookFunc();
+    // Apply to the live iframe immediately. A full render can be ignored by
+    // the reader's navigation lock and TXT refreshes may overwrite its result.
+    StyleUtil.applySymbolColoring();
   };
 
   updateRule = (id: string, patch: Partial<SymbolColorRule>) => {

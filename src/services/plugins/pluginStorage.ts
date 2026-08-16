@@ -13,6 +13,7 @@ export interface PluginStorage {
   deletePath(relativePath: string): Promise<boolean>;
   /** Lists entries under a directory; "" lists installed plugin ids ("id/"). */
   listDir(relativePath: string): Promise<string[]>;
+  readBundledPlugin(id: string): Promise<{ manifest: unknown; mainJs: string } | null>;
 }
 
 const electronStorage = (): PluginStorage => ({
@@ -32,6 +33,10 @@ const electronStorage = (): PluginStorage => ({
     window
       .require("electron")
       .ipcRenderer.invoke(PLUGIN_IPC.listDir, { path: relativePath }),
+  readBundledPlugin: async (id) =>
+    window
+      .require("electron")
+      .ipcRenderer.invoke(PLUGIN_IPC.readBundled, { id }),
 });
 
 const DB_NAME = "koodo-plugins";
@@ -122,6 +127,7 @@ const indexedDbStorage = (): PluginStorage => ({
       return [];
     }
   },
+  readBundledPlugin: async () => null,
 });
 
 export const getPluginStorage = (): PluginStorage =>
