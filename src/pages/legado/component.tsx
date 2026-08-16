@@ -60,6 +60,7 @@ interface State {
   cachedBooks: LegadoCachedBook[];
   offline: boolean;
   offlineServerId: string;
+  hasRequestedBookshelf: boolean;
 }
 
 const emptyServer = (): LegadoServerConfig => ({
@@ -135,13 +136,13 @@ class Legado extends React.Component<Props, State> {
       cachedBooks: getCachedLegadoBooks(),
       offline: false,
       offlineServerId: "",
+      hasRequestedBookshelf: false,
     };
   })();
 
   componentDidMount() {
     document.body.classList.add("legado-route-active");
     window.addEventListener("keydown", this.handleEscape, true);
-    if (this.selectedServer) this.loadBookshelf();
   }
 
   componentWillUnmount() {
@@ -245,7 +246,8 @@ class Legado extends React.Component<Props, State> {
       chapters: [],
       selectedChapter: null,
       content: "",
-    }, () => this.selectedServer && this.loadBookshelf());
+      hasRequestedBookshelf: false,
+    });
   };
 
   selectServer = (server: LegadoServerConfig) => {
@@ -258,16 +260,19 @@ class Legado extends React.Component<Props, State> {
       selectedChapter: null,
       content: "",
       error: "",
-    }, this.loadBookshelf);
+      hasRequestedBookshelf: false,
+    });
   };
 
   loadBookshelf = () => {
     const server = this.selectedServer;
     if (!server) return;
-    this.run(async () => {
-      const books = await getLegadoBookshelf(server);
-      this.setState({ books });
-      toast.success(`${this.props.t("Bookshelf refreshed")}: ${books.length}`);
+    this.setState({ hasRequestedBookshelf: true }, () => {
+      this.run(async () => {
+        const books = await getLegadoBookshelf(server);
+        this.setState({ books });
+        toast.success(`${this.props.t("Bookshelf refreshed")}: ${books.length}`);
+      });
     });
   };
 
@@ -774,7 +779,7 @@ class Legado extends React.Component<Props, State> {
           {this.selectedServer && <button className="legado-delete" onClick={() => this.deleteServer(this.selectedServer!)}><Trans>Delete server</Trans></button>}
         </aside>
         <main className="legado-library">
-          <header className="legado-hero"><div><h1>{isCached ? this.props.t("Cached books") : (this.selectedServer?.name || this.props.t("Legado bookshelf"))}</h1><p><Trans>Read the books on your phone and sync chapter progress in both directions.</Trans></p></div>{!isCached && <button onClick={this.loadBookshelf} disabled={!this.selectedServer || this.state.loading}>↻ <Trans>Refresh bookshelf</Trans></button>}</header>
+          <header className="legado-hero"><div><h1>{isCached ? this.props.t("Cached books") : (this.selectedServer?.name || this.props.t("Legado bookshelf"))}</h1><p><Trans>Read the books on your phone and sync chapter progress in both directions.</Trans></p></div>{!isCached && <button onClick={this.loadBookshelf} disabled={!this.selectedServer || this.state.loading}>↻ <Trans>Connect and refresh</Trans></button>}</header>
           <div className="legado-tabs">
             <button className={!isCached ? "active" : ""} onClick={() => this.setState({ view: "online" })}><Trans>Legado bookshelf</Trans></button>
             <button className={isCached ? "active" : ""} onClick={() => this.setState({ view: "cached", cachedBooks: getCachedLegadoBooks() })}><Trans>Cached books</Trans> <em>{cachedBooks.length}</em></button>
@@ -782,7 +787,11 @@ class Legado extends React.Component<Props, State> {
           <div className="legado-search"><span>⌕</span><input value={this.state.filter} onChange={(event) => this.setState({ filter: event.target.value })} placeholder={this.props.t("Search title or author")} /><em>{isCached ? offlineBooks.length : onlineBooks.length}</em></div>
           {this.state.error && <pre className="legado-error">{this.state.error}</pre>}
           {!isCached && this.state.loading && !this.state.selectedBook && <div className="legado-loading"><i /><Trans>Connecting to Legado...</Trans></div>}
-          {!isCached && !this.state.loading && this.selectedServer && onlineBooks.length === 0 && !this.state.error && <div className="legado-empty"><span>阅</span><h3><Trans>No books returned</Trans></h3><p><Trans>Make sure the phone Web service is running, then refresh the bookshelf.</Trans></p></div>}
+          {!isCached && !this.state.loading && this.selectedServer && onlineBooks.length === 0 && !this.state.error && (
+            this.state.hasRequestedBookshelf
+              ? <div className="legado-empty"><span>阅</span><h3><Trans>No books returned</Trans></h3><p><Trans>Make sure the phone Web service is running, then refresh the bookshelf.</Trans></p></div>
+              : <div className="legado-empty"><span>阅</span><h3><Trans>Not connected yet</Trans></h3><p><Trans>Click Connect and refresh when you want to load your phone bookshelf.</Trans></p></div>
+          )}
           {isCached && offlineBooks.length === 0 && <div className="legado-empty"><span>阅</span><h3><Trans>No cached books</Trans></h3><p><Trans>Open a book while connected and cache it, then read it here offline.</Trans></p></div>}
           <section className="legado-book-grid">
             {isCached

@@ -8,6 +8,7 @@ import OnlineLibrary from "../pages/onlineLibrary";
 import WeRead from "../pages/weRead";
 import Legado from "../pages/legado";
 import Plugins from "../pages/plugins";
+import SourceShelf from "../pages/sourceShelf";
 
 export const routes = [
   { path: "/manager/empty", component: EmptyPage },
@@ -18,6 +19,7 @@ export const routes = [
   { path: "/manager/favorite", component: BookList },
   { path: "/manager/trash", component: DeletedBookList },
   { path: "/manager/sources", component: BookSources },
+  { path: "/manager/sourceShelf", component: SourceShelf },
   { path: "/manager/library", component: OnlineLibrary },
   { path: "/manager/weread", component: WeRead },
   { path: "/manager/legado", component: Legado },

@@ -32,6 +32,12 @@ export interface BookSourceEngine {
   getBookDetail?: (source: unknown, book: unknown) => Promise<unknown>;
   /** Reserved for online reading; may be absent in v1 plugins. */
   getChapterList?: (source: unknown, book: unknown) => Promise<unknown[]>;
+  /** Loads one directory page and returns cursors for later pages. */
+  getChapterListPage?: (
+    source: unknown,
+    book: unknown,
+    cursor?: string
+  ) => Promise<{ chapters: unknown[]; nextTocUrls: string[] }>;
   getChapterContent?: (source: unknown, chapter: unknown) => Promise<unknown>;
 }
 

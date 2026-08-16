@@ -1,4 +1,6 @@
 body {
+  --color-background: rgba(47, 52, 55, 1);
+  --color-text: rgba(235, 235, 235, 1);
   -webkit-tap-highlight-color: transparent;
   background: rgba(47, 52, 55, 1);
   color: rgba(235, 235, 235, 1);

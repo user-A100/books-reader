@@ -33,7 +33,7 @@ export const resolveSourceUrl = (value: string, baseUrl: string): string => {
   }
 };
 
-const isPrivateHostname = (hostname: string): boolean => {
+export const isPrivateHostname = (hostname: string): boolean => {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host === "::1")
     return true;

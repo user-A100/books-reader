@@ -11,6 +11,7 @@ import {
   PluginErrorCode,
 } from "../../services/plugins/pluginTypes";
 import { pluginHost } from "../../services/plugins/pluginHost";
+import { ensurePluginsStarted } from "../../services/plugins/pluginStartup";
 import {
   fetchCommunityPlugins,
   installFromCommunity,
@@ -55,7 +56,7 @@ class Plugins extends React.Component<PluginsProps, PluginsState> {
   async componentDidMount() {
     // Enabled plugins are normally started at app startup; starting here as
     // well keeps the page honest about plugins that failed to load.
-    const failures = await pluginHost.startEnabled();
+    const failures = await ensurePluginsStarted();
     const records = await pluginHost.listInstalled();
     this.setState({
       records,

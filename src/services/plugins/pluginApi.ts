@@ -16,8 +16,8 @@ import {
 export interface HttpFetchOptions {
   method?: string;
   headers?: Record<string, string>;
-  /** When true (default) the response body is returned as text. */
-  body?: string;
+  /** Text or pre-encoded bytes (for example a GBK form submission). */
+  body?: string | Uint8Array;
 }
 
 export interface HttpFetchResult {
@@ -26,6 +26,8 @@ export interface HttpFetchResult {
   finalUrl: string;
   headers: Record<string, string>;
   body: string;
+  /** Raw response body encoded by the main process. Kept for Worker Response. */
+  binary?: boolean;
 }
 
 const PLUGIN_ALLOWED_HOSTS = /^[a-z0-9.-]+$/i;
@@ -104,19 +106,8 @@ export class PluginHostApi {
       if (!this.isUrlAllowed(finalUrl)) {
         throw new Error("The request redirected outside allowed hosts");
       }
-      // The main process returns raw bytes as base64 so the engine's
-      // charset detection (decodeHttpResponseBody) sees the real bytes,
-      // not a prematurely-decoded UTF-8 string.
-      let body: string;
-      if (result.binary) {
-        const binary = atob(result.body);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-        body = new TextDecoder("utf-8").decode(bytes);
-      } else {
-        body = result.body;
-      }
-      if (body.length > PLUGIN_FETCH_MAX_BYTES) {
+      const body = String(result.body || "");
+      if (body.length > PLUGIN_FETCH_MAX_BYTES * 2) {
         throw new Error("The plugin response is larger than 20 MB");
       }
       return {
@@ -125,6 +116,7 @@ export class PluginHostApi {
         finalUrl,
         headers: result.headers || {},
         body,
+        binary: result.binary === true,
       };
     }
     // Web fallback (subject to CORS — only works for CORS-enabled hosts).
@@ -134,7 +126,7 @@ export class PluginHostApi {
       const response = await fetch(urlText, {
         method: options.method || "GET",
         headers: options.headers || {},
-        body: options.body,
+        body: options.body as BodyInit | null | undefined,
         credentials: "omit",
         signal: controller.signal,
       });

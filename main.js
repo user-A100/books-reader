@@ -2016,6 +2016,49 @@ const createMainWin = () => {
       return [];
     }
   });
+  // On-demand book-source chapter cache. Metadata stays in ConfigService;
+  // chapter bodies live in dedicated files so they never bloat synced config.
+  const sourceCacheDir = path.join(configDir, "source-chapter-cache");
+  const resolveSourceCacheBook = (bookId) => {
+    if (typeof bookId !== "string" || !/^source-book-[a-z0-9-]+$/.test(bookId)) {
+      return null;
+    }
+    const resolved = path.resolve(sourceCacheDir, bookId);
+    return resolved.startsWith(sourceCacheDir + path.sep) ? resolved : null;
+  };
+  const resolveSourceCacheChapter = (bookId, chapterIndex) => {
+    const bookDir = resolveSourceCacheBook(bookId);
+    const index = Number(chapterIndex);
+    if (!bookDir || !Number.isSafeInteger(index) || index < 0) return null;
+    return path.join(bookDir, `${index}.txt`);
+  };
+  ipcMain.handle("source-cache-read", async (event, config) => {
+    const resolved = resolveSourceCacheChapter(config?.bookId, config?.chapterIndex);
+    if (!resolved) return "";
+    try {
+      return await fs.promises.readFile(resolved, "utf8");
+    } catch (error) {
+      if (error && error.code === "ENOENT") return "";
+      throw error;
+    }
+  });
+  ipcMain.handle("source-cache-write", async (event, config) => {
+    const resolved = resolveSourceCacheChapter(config?.bookId, config?.chapterIndex);
+    if (!resolved || typeof config?.content !== "string") return false;
+    if (Buffer.byteLength(config.content, "utf8") > 10 * 1024 * 1024) return false;
+    await fs.promises.mkdir(path.dirname(resolved), { recursive: true });
+    const temporary = `${resolved}.${process.pid}.tmp`;
+    await fs.promises.writeFile(temporary, config.content, "utf8");
+    await fs.promises.rm(resolved, { force: true });
+    await fs.promises.rename(temporary, resolved);
+    return true;
+  });
+  ipcMain.handle("source-cache-delete", async (event, config) => {
+    const resolved = resolveSourceCacheBook(config?.bookId);
+    if (!resolved) return false;
+    await fs.promises.rm(resolved, { recursive: true, force: true });
+    return true;
+  });
   // Main-process download for the plugin registry and plugin bundles so a
   // proxy can be swapped at this level later. HTTPS only, redirects followed
   // manually (re-validated), 20 MB cap, bytes returned as base64.
@@ -2079,14 +2122,17 @@ const createMainWin = () => {
     }
     return fetchWithRedirects(config.url, 0);
   });
-  // Main-process HTTP fetch for book-source plugins. Runs in Node (no CORS,
-  // no browser origin restrictions) so cross-origin book-source sites that
-  // don't send Access-Control-Allow-Origin still work. SSRF guards live in
-  // the renderer-side host API; this handler trusts the renderer and only
-  // enforces: http(s) only, no private IPs, 20 MB cap, 30 s timeout.
+  // Keep book-source traffic out of the app's default session. A source can
+  // otherwise inherit a stuck cache/auth/proxy state from pages opened by the
+  // main window. The plugin itself owns its persisted cookie jar, so this
+  // lightweight in-memory session is sufficient and resets cleanly on launch.
+  const pluginNetworkSession = session.fromPartition("koodo-plugin-http", {
+    cache: false,
+  });
+
+  // Main-process HTTP fetch for book-source plugins. This avoids browser CORS
+  // while retaining Chromium's proxy, TLS and content-decoding behaviour.
   ipcMain.handle("plugin-http-fetch", async (event, config) => {
-    const https = require("https");
-    const http = require("http");
     if (typeof (config && config.url) !== "string") {
       throw new Error("Missing url");
     }
@@ -2121,99 +2167,120 @@ const createMainWin = () => {
     ) {
       throw new Error("Blocked by SSRF guard");
     }
-    const isHttps = parsedUrl.protocol === "https:";
-    const lib = isHttps ? https : http;
     const method = String(config.method || "GET").toUpperCase();
     const headers = config.headers || {};
+    const rawRequestBody = config.body;
+    const requestBody =
+      typeof rawRequestBody === "string"
+        ? rawRequestBody
+        : ArrayBuffer.isView(rawRequestBody)
+          ? Buffer.from(
+              rawRequestBody.buffer,
+              rawRequestBody.byteOffset,
+              rawRequestBody.byteLength
+            )
+          : rawRequestBody instanceof ArrayBuffer
+            ? Buffer.from(rawRequestBody)
+            : null;
+    if (requestBody && Buffer.byteLength(requestBody) > 20 * 1024 * 1024) {
+      throw new Error("Plugin request body exceeds 20 MB");
+    }
     if (!headers["User-Agent"] && !headers["user-agent"]) {
       headers["User-Agent"] =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     }
-    const chunks = [];
-    return await new Promise((resolve, reject) => {
-      const request = lib.request(
-        parsedUrl,
-        { method, headers, timeout: 30000 },
-        (response) => {
-          // Follow redirects manually (3xx), re-validating the target.
-          if (
-            [301, 302, 303, 307, 308].includes(response.statusCode) &&
-            response.headers.location
-          ) {
-            const next = new URL(
-              response.headers.location,
-              parsedUrl
-            );
-            if (isPrivateHost(next.hostname)) {
-              return reject(new Error("Redirected to a private host"));
-            }
-            // Recurse via the same IPC by issuing a fresh request.
-            const followLib = next.protocol === "https:" ? https : http;
-            const followReq = followLib.request(
-              next,
-              { method, headers, timeout: 30000 },
-              (followRes) => {
-                followRes.on("data", (chunk) => {
-                  chunks.push(chunk);
-                  if (Buffer.concat(chunks).length > 20 * 1024 * 1024) {
-                    followReq.destroy(new Error("Response exceeds 20 MB"));
-                  }
-                });
-                followRes.on("end", () => {
-                  const body = Buffer.concat(chunks);
-                  const flatHeaders = {};
-                  Object.entries(followRes.headers).forEach(([k, v]) => {
-                    flatHeaders[k] = Array.isArray(v) ? v.join(", ") : v;
-                  });
-                  resolve({
-                    status: followRes.statusCode,
-                    finalUrl: next.toString(),
-                    headers: flatHeaders,
-                    body: body.toString("base64"),
-                    binary: true,
-                  });
-                });
-                followRes.on("error", reject);
-              }
-            );
-            followReq.on("timeout", () =>
-              followReq.destroy(new Error("Request timed out"))
-            );
-            followReq.on("error", reject);
-            if (config.body) followReq.write(config.body);
-            followReq.end();
-            return;
-          }
-          response.on("data", (chunk) => {
-            chunks.push(chunk);
-            if (Buffer.concat(chunks).length > 20 * 1024 * 1024) {
-              request.destroy(new Error("Response exceeds 20 MB"));
-            }
-          });
-          response.on("end", () => {
-            const body = Buffer.concat(chunks);
-            const flatHeaders = {};
-            Object.entries(response.headers).forEach(([k, v]) => {
-              flatHeaders[k] = Array.isArray(v) ? v.join(", ") : v;
-            });
-            resolve({
-              status: response.statusCode,
-              finalUrl: parsedUrl.toString(),
-              headers: flatHeaders,
-              body: body.toString("base64"),
-              binary: true,
-            });
-          });
-          response.on("error", reject);
+
+    const fetchWithRedirects = async (
+      currentUrl,
+      currentMethod,
+      currentBody,
+      redirectCount = 0
+    ) => {
+      if (
+        (currentUrl.protocol !== "http:" && currentUrl.protocol !== "https:") ||
+        isPrivateHost(currentUrl.hostname)
+      ) {
+        throw new Error("Blocked by SSRF guard");
+      }
+      if (redirectCount > 5) {
+        throw new Error("Too many redirects");
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      try {
+        const response = await pluginNetworkSession.fetch(currentUrl.toString(), {
+          method: currentMethod,
+          headers,
+          body:
+            currentMethod === "GET" || currentMethod === "HEAD"
+              ? undefined
+              : currentBody || undefined,
+          redirect: "manual",
+          signal: controller.signal,
+          bypassCustomProtocolHandlers: true,
+        });
+
+        const location = response.headers.get("location");
+        if (
+          [301, 302, 303, 307, 308].includes(response.status) &&
+          location
+        ) {
+          const nextUrl = new URL(location, currentUrl);
+          const changeToGet =
+            response.status === 303 ||
+            ((response.status === 301 || response.status === 302) &&
+              currentMethod === "POST");
+          return fetchWithRedirects(
+            nextUrl,
+            changeToGet ? "GET" : currentMethod,
+            changeToGet ? null : currentBody,
+            redirectCount + 1
+          );
         }
+
+        const chunks = [];
+        let totalBytes = 0;
+        if (response.body) {
+          const reader = response.body.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            totalBytes += value.byteLength;
+            if (totalBytes > 20 * 1024 * 1024) {
+              await reader.cancel();
+              throw new Error("Response exceeds 20 MB");
+            }
+            chunks.push(Buffer.from(value));
+          }
+        }
+        const flatHeaders = {};
+        response.headers.forEach((value, key) => {
+          flatHeaders[key] = value;
+        });
+        return {
+          status: response.status,
+          finalUrl: currentUrl.toString(),
+          headers: flatHeaders,
+          body: Buffer.concat(chunks).toString("base64"),
+          binary: true,
+        };
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    try {
+      return await fetchWithRedirects(parsedUrl, method, requestBody);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : String(error || "Network request failed");
+      throw new Error(
+        `Plugin request failed (${parsedUrl.hostname}): ${message}`
       );
-      request.on("timeout", () =>
-        request.destroy(new Error("Request timed out"))
-      );
-      request.on("error", reject);
-      if (config.body) request.write(config.body);
-      request.end();
-    });
+    }
   });
   ipcMain.handle("encrypt-data", async (event, config) => {
     const { TokenService } =

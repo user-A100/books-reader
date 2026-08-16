@@ -33,9 +33,22 @@ function pluginWorkerBootstrap(): void {
       (self as unknown as Worker).postMessage({ type: "api", id, op, args });
     });
 
+  const normalizeRequestBody = (
+    body: BodyInit | null | undefined
+  ): string | Uint8Array | undefined => {
+    if (typeof body === "string") return body;
+    if (body instanceof Uint8Array) return body;
+    if (body instanceof ArrayBuffer) return new Uint8Array(body);
+    if (ArrayBuffer.isView(body)) {
+      return new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
+    }
+    return undefined;
+  };
+
   // Route native fetch through the host's SSRF-guarded httpFetch so engine
-  // code that calls fetch() directly is still allowlisted. A real Response
-  // object is reconstructed so callers keep the standard API surface.
+  // code that calls fetch() directly is still allowlisted. Preserve raw bytes
+  // from the main process: Legado performs charset detection after reading
+  // arrayBuffer(), so decoding here would corrupt GBK/GB2312 sources.
   (self as unknown as { fetch: typeof fetch }).fetch = ((
     input: RequestInfo | URL,
     init?: RequestInit
@@ -45,15 +58,27 @@ function pluginWorkerBootstrap(): void {
       {
         method: (init && init.method) || "GET",
         headers: (init && init.headers) as Record<string, string>,
-        body: typeof (init && init.body) === "string" ? init!.body : undefined,
+        // iconv-lite returns Uint8Array for GBK/GB2312 form bodies. Keep those
+        // bytes intact across Worker -> renderer -> Electron IPC.
+        body: normalizeRequestBody(init && init.body),
       },
     ]).then((raw) => {
       const result = raw as {
         status: number;
         body: string;
         headers: Record<string, string>;
+        binary?: boolean;
       };
-      return new Response(result.body, {
+      let responseBody: BodyInit = result.body;
+      if (result.binary) {
+        const encoded = atob(result.body);
+        const bytes = new Uint8Array(encoded.length);
+        for (let i = 0; i < encoded.length; i += 1) {
+          bytes[i] = encoded.charCodeAt(i);
+        }
+        responseBody = bytes;
+      }
+      return new Response(responseBody, {
         status: result.status,
         headers: result.headers,
       });
@@ -501,6 +526,14 @@ class PluginHostService {
       getChapterList: entry.engineMethods.includes("getChapterList")
         ? (source, book) =>
             this.callEngine<unknown[]>(id, "getChapterList", [source, book])
+        : undefined,
+      getChapterListPage: entry.engineMethods.includes("getChapterListPage")
+        ? (source, book, cursor) =>
+            this.callEngine<{ chapters: unknown[]; nextTocUrls: string[] }>(
+              id,
+              "getChapterListPage",
+              [source, book, cursor]
+            )
         : undefined,
       getChapterContent: entry.engineMethods.includes("getChapterContent")
         ? (source, chapter) =>
