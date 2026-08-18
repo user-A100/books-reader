@@ -37,6 +37,9 @@ const {
 const configDir = app.getPath("userData");
 const dirPath = path.join(configDir, "uploads");
 const packageJson = require("./package.json");
+// Give Windows a stable application identity so the taskbar uses the
+// packaged Books icon instead of grouping this window under Electron.
+app.setAppUserModelId(packageJson.build?.appId || "com.usera100.booksreader");
 let mainWin;
 let tray = null;
 let isQuitting = false;
@@ -1498,6 +1501,12 @@ const createMainWin = () => {
     delete options.y;
   }
   mainWin = new BrowserWindow(options);
+  // Set the icon explicitly as well as through BrowserWindow options. This
+  // matters for the Windows taskbar, especially for portable builds and
+  // machines with a stale icon cache.
+  if (appIconPath && fs.existsSync(appIconPath)) {
+    mainWin.setIcon(nativeImage.createFromPath(appIconPath));
+  }
   if (store.get("isAlwaysOnTop") === "yes") {
     mainWin.setAlwaysOnTop(true);
   }

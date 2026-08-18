@@ -1,7 +1,7 @@
 {
   "name": "books-reader",
   "main": "main.js",
-  "version": "2.4.6",
+  "version": "2.4.7",
   "description": "Books is a personal cross-platform ebook reader",
   "author": {
     "name": "user-A100"
